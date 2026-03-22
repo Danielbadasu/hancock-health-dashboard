@@ -4,11 +4,10 @@ import pandas as pd
 from utils.data_loader import (
     load_latest, load_all_years, get_hancock, get_ohio, get_trend, find_column
 )
-from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat
+from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
-st.set_page_config(page_title="?? Behavioral Health", page_icon="??", layout="wide")
+st.set_page_config(page_title="🧠 Behavioral Health", page_icon="🧠", layout="wide")
 
-# ---- CSS ----
 st.markdown("""
 <style>
 .kpi-container { display: flex; gap: 20px; margin-bottom: 30px; }
@@ -60,32 +59,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---- CHART CONFIG ----
-CHART_CONFIG = {
-    'displayModeBar': True,
-    'modeBarButtonsToRemove': [
-        'zoom2d', 'pan2d', 'select2d', 'lasso2d',
-        'zoomIn2d', 'zoomOut2d', 'autoScale2d',
-        'hoverClosestCartesian', 'hoverCompareCartesian',
-        'toggleSpikelines'
-    ],
-    'displaylogo': False,
-    'scrollZoom': False,
-}
-
-LAYOUT_BASE = dict(
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0.2)',
-    hovermode='closest',
-    hoverlabel=dict(bgcolor='#1a1a2e', font_size=13),
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-)
-
 # ---- LOAD DATA ----
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR FILTERS — defined first so KPIs are driven by them ----
+# ---- SIDEBAR ----
 st.sidebar.header("Filters")
 
 show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
@@ -93,21 +71,13 @@ show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
 all_years_list = sorted([
     int(y) for y in all_data['additional']['year'].dropna().unique()
 ])
-if len(all_years_list) >= 2:
-    year_range = st.sidebar.slider(
-        "Year Range",
-        min_value=min(all_years_list),
-        max_value=max(all_years_list),
-        value=(min(all_years_list), max(all_years_list)),
-        step=1
-    )
-else:
-    year_range = (
-        min(all_years_list) if all_years_list else 2020,
-        max(all_years_list) if all_years_list else 2025
-    )
 
-selected_year = year_range[1]
+selected_year = st.sidebar.selectbox(
+    "Select Year",
+    options=sorted(all_years_list, reverse=True),
+    index=0,
+    help="Filters all scorecards and charts to this year"
+)
 
 selected_charts = st.sidebar.multiselect(
     "Charts to Display",
@@ -133,7 +103,7 @@ st.sidebar.markdown("- Mental health access")
 st.sidebar.markdown("- Substance use & overdose")
 st.sidebar.markdown("- Suicide prevention")
 
-# ---- DYNAMIC METRIC HELPER ----
+# ---- METRIC HELPER ----
 def get_metric(col, county='Hancock', sheet='additional'):
     df = all_data[sheet]
     year_df = df[df['year'] == selected_year]
@@ -149,16 +119,14 @@ def get_metric(col, county='Hancock', sheet='additional'):
     return round(float(val), 1) if pd.notna(val) else None
 
 def arrow(h, o, lower_is_better=True):
-    if h is None or o is None:
-        return '–'
+    if h is None or o is None: return '–'
     return '▼' if (h < o) else '▲'
 
 def diff(h, o):
-    if h is None or o is None:
-        return 0
+    if h is None or o is None: return 0
     return round(abs(h - o), 1)
 
-# ---- DYNAMIC METRICS ----
+# ---- METRICS ----
 mh_days_h  = get_metric('Average Number of Mentally Unhealthy Days', sheet='select')
 mh_days_o  = get_metric('Average Number of Mentally Unhealthy Days', county='Ohio', sheet='select')
 mh_prov_h  = get_metric('Mental Health Provider Rate', sheet='select')
@@ -234,10 +202,7 @@ st.markdown("---")
 
 # ---- TREND CHART HELPER ----
 def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
-    df = trend_df[
-        (trend_df['year'] >= year_range[0]) &
-        (trend_df['year'] <= year_range[1])
-    ].copy()
+    df = trend_df[trend_df['year'] <= selected_year].copy()
     if not show_ohio:
         df = df[df['geography'] == 'Hancock County']
     if df.empty:
@@ -262,9 +227,9 @@ def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
     )
     return fig
 
-# ---- CHART 1: MENTAL HEALTH COMPARISON ----
+# ---- CHART 1: COMPARISON BAR ----
 if "Mental Health Indicators Comparison" in selected_charts:
-    st.markdown('<div class="section-title">Mental Health Indicators — Hancock vs Ohio</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">Mental Health Indicators — Hancock vs Ohio ({selected_year})</div>', unsafe_allow_html=True)
     compare_df = pd.DataFrame({
         'Indicator': [
             'Mentally Unhealthy Days', 'Frequent Mental Distress %',
@@ -292,7 +257,7 @@ if "Mental Health Indicators Comparison" in selected_charts:
 
 # ---- CHART 2: OVERDOSE TREND ----
 if "Drug Overdose Trend" in selected_charts:
-    st.markdown('<div class="section-title">Drug Overdose Deaths — Trend Over Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Drug Overdose Deaths — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['additional'], ['Drug Overdose Mortality Rate', 'Drug Overdose Death Rate'])
     if col:
         fig = make_trend_chart(
@@ -303,13 +268,11 @@ if "Drug Overdose Trend" in selected_charts:
         if fig:
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No overdose data in selected year range.")
-    else:
-        st.info("Overdose column not found in dataset.")
+            st.info("No overdose data available.")
 
 # ---- CHART 3: MH PROVIDER TREND ----
 if "Mental Health Provider Trend" in selected_charts:
-    st.markdown('<div class="section-title">Mental Health Provider Access — Trend Over Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Mental Health Provider Access — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['select'], ['Mental Health Provider Rate', 'Mental Health Providers Rate'])
     if col:
         fig = make_trend_chart(
@@ -320,13 +283,11 @@ if "Mental Health Provider Trend" in selected_charts:
         if fig:
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No provider data in selected year range.")
-    else:
-        st.info("Mental health provider column not found.")
+            st.info("No provider data available.")
 
 # ---- CHART 4: SUICIDE TREND ----
 if "Suicide Rate Trend" in selected_charts:
-    st.markdown('<div class="section-title">Suicide Rate — Trend Over Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Suicide Rate — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['additional'], ['Suicide Rate (Age-Adjusted)', 'Suicide Rate'])
     if col:
         fig = make_trend_chart(
@@ -337,9 +298,7 @@ if "Suicide Rate Trend" in selected_charts:
         if fig:
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No suicide data in selected year range.")
-    else:
-        st.info("Suicide rate column not found.")
+            st.info("No suicide data available.")
 
 # ---- DOWNLOAD ----
 st.markdown("---")
@@ -361,8 +320,5 @@ st.download_button(
 if st.checkbox("Show raw comparison data"):
     st.dataframe(export_df, use_container_width=True)
 
-# ---- DISCLAIMER ----
 render_disclaimer("Behavioral Health & Substance Use")
-
-# ---- SIDEBAR CHAT ----
 render_sidebar_chat("Behavioral Health & Substance Use")

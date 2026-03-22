@@ -6,11 +6,10 @@ from utils.data_loader import (
     load_latest, load_all_years, get_hancock, get_ohio,
     get_trend, get_all_counties, find_column
 )
-from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat
+from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
 st.set_page_config(page_title="📊 Health Outcomes", page_icon="📊", layout="wide")
 
-# ---- CSS ----
 st.markdown("""
 <style>
 .kpi-container { display: flex; gap: 20px; margin-bottom: 30px; }
@@ -63,34 +62,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---- CHART CONFIG ----
-CHART_CONFIG = {
-    'displayModeBar': True,
-    'modeBarButtonsToRemove': [
-        'zoom2d', 'pan2d', 'select2d', 'lasso2d',
-        'zoomIn2d', 'zoomOut2d', 'autoScale2d',
-        'hoverClosestCartesian', 'hoverCompareCartesian',
-        'toggleSpikelines'
-    ],
-    'displaylogo': False,
-    'scrollZoom': False,
-}
-
-LAYOUT_BASE = dict(
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0.2)',
-    hovermode='closest',
-    hoverlabel=dict(bgcolor='#1a1a2e', font_size=13),
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-)
-
 # ---- LOAD DATA ----
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR FILTERS — defined first so KPIs are driven by them ----
+# ---- SIDEBAR ----
 st.sidebar.header("Filters")
-
 show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
 
 all_years_list = sorted([
@@ -98,25 +75,11 @@ all_years_list = sorted([
 ])
 
 selected_year = st.sidebar.selectbox(
-    "KPI Reference Year",
+    "Select Year",
     options=sorted(all_years_list, reverse=True),
     index=0,
-    help="Changes the scorecard values above"
+    help="Filters all scorecards and charts to this year"
 )
-
-if len(all_years_list) >= 2:
-    year_range = st.sidebar.slider(
-        "Chart Year Range",
-        min_value=min(all_years_list),
-        max_value=max(all_years_list),
-        value=(min(all_years_list), max(all_years_list)),
-        step=1
-    )
-else:
-    year_range = (
-        min(all_years_list) if all_years_list else 2020,
-        max(all_years_list) if all_years_list else 2025
-    )
 
 selected_charts = st.sidebar.multiselect(
     "Charts to Display",
@@ -143,7 +106,7 @@ st.sidebar.markdown("- Premature mortality")
 st.sidebar.markdown("- Birth outcomes")
 st.sidebar.markdown("- Injury deaths")
 
-# ---- DYNAMIC METRIC HELPER ----
+# ---- METRIC HELPER ----
 def get_metric(col, county='Hancock', sheet='additional'):
     df = all_data[sheet]
     year_df = df[df['year'] == selected_year]
@@ -166,7 +129,7 @@ def diff(h, o):
     if h is None or o is None: return 0
     return round(abs(h - o), 1)
 
-# ---- DYNAMIC METRICS ----
+# ---- METRICS ----
 life_exp_h   = get_metric('Life Expectancy')
 life_exp_o   = get_metric('Life Expectancy', county='Ohio')
 ypll_h       = get_metric('Years of Potential Life Lost Rate', sheet='select')
@@ -198,8 +161,8 @@ st.markdown(f"""
     💡 <strong>Key Finding ({selected_year}):</strong> Hancock County residents live an average of
     <strong>{life_exp_h} years</strong> — {life_diff} years longer than the Ohio average of {life_exp_o}.
     The county also loses <strong>{ypll_diff:,} fewer years of potential life</strong> per 100k residents
-    than the state average, reflecting stronger overall health outcomes. These strengths support
-    the case for continued investment across all three CHIP priority areas.
+    than the state average. These strengths support the case for continued investment across all
+    three CHIP priority areas.
 </div>
 """, unsafe_allow_html=True)
 
@@ -260,10 +223,7 @@ st.markdown("---")
 
 # ---- TREND CHART HELPER ----
 def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
-    df = trend_df[
-        (trend_df['year'] >= year_range[0]) &
-        (trend_df['year'] <= year_range[1])
-    ].copy()
+    df = trend_df[trend_df['year'] <= selected_year].copy()
     if not show_ohio:
         df = df[df['geography'] == 'Hancock County']
     if df.empty:
@@ -274,7 +234,7 @@ def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
         geo_data = df[df['geography'] == trace.name]
         trace.mode = 'lines+markers' if len(geo_data) > 1 else 'markers'
         trace.line = dict(width=3)
-        trace.marker = dict(size=9)
+        trace.marker = dict(size=9 if len(geo_data) > 1 else 14)
         trace.hovertemplate = (
             '<b>%{fullData.name}</b><br>'
             'Year: %{x}<br>'
@@ -290,61 +250,43 @@ def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
 
 # ---- CHART 1: LIFE EXPECTANCY TREND ----
 if "Life Expectancy Trend" in selected_charts:
-    st.markdown('<div class="section-title">Life Expectancy — Trend Over Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Life Expectancy — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['additional'], ['Life Expectancy', 'life_expectancy'])
     if col:
-        fig = make_trend_chart(
-            get_trend(all_data['additional'], col), col,
-            {'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'},
-            'Life Expectancy', ' yrs'
-        )
+        fig = make_trend_chart(get_trend(all_data['additional'], col), col,
+                               {'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'}, 'Life Expectancy', ' yrs')
         if fig:
             fig.update_layout(yaxis=dict(range=[68, 82], title='Life Expectancy (years)'))
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No life expectancy data in selected year range.")
+            st.info("No life expectancy data available.")
 
 # ---- CHART 2: YPLL TREND ----
 if "YPLL Trend" in selected_charts:
-    st.markdown('<div class="section-title">Years of Potential Life Lost — Trend Over Time</div>', unsafe_allow_html=True)
-    col = find_column(all_data['select'], [
-        'Years of Potential Life Lost Rate', 'YPLL Rate', 'Premature Death Rate'
-    ])
+    st.markdown('<div class="section-title">Years of Potential Life Lost — Trend Up To Selected Year</div>', unsafe_allow_html=True)
+    col = find_column(all_data['select'], ['Years of Potential Life Lost Rate', 'YPLL Rate', 'Premature Death Rate'])
     if col:
         trend_df = get_trend(all_data['select'], col)
-        df = trend_df[
-            (trend_df['year'] >= year_range[0]) &
-            (trend_df['year'] <= year_range[1])
-        ].copy()
+        df = trend_df[trend_df['year'] <= selected_year].copy()
         if not show_ohio:
             df = df[df['geography'] == 'Hancock County']
         if not df.empty:
-            fig2 = px.area(
-                df, x='year', y=col, color='geography',
-                labels={col: 'YPLL Rate (per 100k)', 'year': 'Year', 'geography': ''},
-                color_discrete_map={'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'},
-                template='plotly_dark'
-            )
-            fig2.update_traces(
-                opacity=0.7, line=dict(width=2),
-                hovertemplate='<b>%{fullData.name}</b><br>Year: %{x}<br>YPLL: %{y:,.0f}<extra></extra>'
-            )
-            fig2.update_layout(
-                **LAYOUT_BASE,
-                xaxis=dict(tickformat='d', dtick=1)
-            )
+            fig2 = px.area(df, x='year', y=col, color='geography',
+                           labels={col: 'YPLL Rate (per 100k)', 'year': 'Year', 'geography': ''},
+                           color_discrete_map={'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'},
+                           template='plotly_dark')
+            fig2.update_traces(opacity=0.7, line=dict(width=2),
+                               hovertemplate='<b>%{fullData.name}</b><br>Year: %{x}<br>YPLL: %{y:,.0f}<extra></extra>')
+            fig2.update_layout(**LAYOUT_BASE, xaxis=dict(tickformat='d', dtick=1))
             st.plotly_chart(fig2, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No YPLL data in selected year range.")
+            st.info("No YPLL data available.")
 
 # ---- CHART 3: OUTCOMES COMPARISON BAR ----
 if "Health Outcomes Comparison" in selected_charts:
-    st.markdown('<div class="section-title">Health Outcomes — Hancock vs Ohio</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">Health Outcomes — Hancock vs Ohio ({selected_year})</div>', unsafe_allow_html=True)
     compare_df = pd.DataFrame({
-        'Indicator': [
-            'Injury Death Rate', 'Infant Mortality Rate',
-            'Child Mortality Rate', 'Low Birth Weight %'
-        ],
+        'Indicator': ['Injury Death Rate', 'Infant Mortality Rate', 'Child Mortality Rate', 'Low Birth Weight %'],
         'Hancock County': [injury_h, infant_h, child_mort_h, lbw_h],
         'Ohio': [injury_o, infant_o, child_mort_o, lbw_o]
     })
@@ -352,16 +294,10 @@ if "Health Outcomes Comparison" in selected_charts:
     compare_melted = compare_df[['Indicator'] + cols_to_show].melt(
         id_vars='Indicator', var_name='Geography', value_name='Value'
     )
-    fig3 = px.bar(
-        compare_melted, x='Indicator', y='Value',
-        color='Geography', barmode='group',
-        color_discrete_map={'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'},
-        labels={'Value': 'Rate / %', 'Indicator': ''},
-        template='plotly_dark'
-    )
-    fig3.update_traces(
-        hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y:.1f}<extra></extra>'
-    )
+    fig3 = px.bar(compare_melted, x='Indicator', y='Value', color='Geography', barmode='group',
+                  color_discrete_map={'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'},
+                  labels={'Value': 'Rate / %', 'Indicator': ''}, template='plotly_dark')
+    fig3.update_traces(hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y:.1f}<extra></extra>')
     fig3.update_layout(**LAYOUT_BASE)
     st.plotly_chart(fig3, use_container_width=True, config=CHART_CONFIG)
 
@@ -370,69 +306,40 @@ if "County Ranking" in selected_charts:
     st.markdown('<div class="section-title">Life Expectancy — Hancock Ranked Among All 88 Ohio Counties</div>', unsafe_allow_html=True)
     all_counties = get_all_counties(latest['additional'])
     if not all_counties.empty and 'Life Expectancy' in all_counties.columns:
-        counties_clean = (
-            all_counties[['County', 'Life Expectancy']]
-            .dropna()
-            .sort_values('Life Expectancy', ascending=True)
-            .reset_index(drop=True)
-        )
+        counties_clean = (all_counties[['County', 'Life Expectancy']].dropna()
+                          .sort_values('Life Expectancy', ascending=True).reset_index(drop=True))
         total = len(counties_clean)
         hancock_idx = counties_clean[counties_clean['County'] == 'Hancock'].index
         hancock_rank_from_top = total - hancock_idx[0] if len(hancock_idx) > 0 else None
-
         counties_clean['highlight'] = counties_clean['County'].apply(
             lambda x: 'Hancock County' if x == 'Hancock' else 'Other Ohio Counties'
         )
-        fig4 = px.bar(
-            counties_clean,
-            x='Life Expectancy', y='County',
-            orientation='h', color='highlight',
-            color_discrete_map={
-                'Hancock County': '#38ef7d',
-                'Other Ohio Counties': '#1D6B8A'
-            },
-            labels={'Life Expectancy': 'Life Expectancy (years)', 'County': ''},
-            template='plotly_dark'
-        )
-        fig4.update_traces(
-            hovertemplate='<b>%{y}</b><br>Life Expectancy: %{x:.1f} years<extra></extra>'
-        )
-        fig4.update_layout(
-            **LAYOUT_BASE,
-            height=2400,
-            yaxis=dict(tickfont=dict(size=10)),
-            xaxis=dict(range=[66, 82], title='Life Expectancy (years)'),
-            bargap=0.12,
-        )
+        fig4 = px.bar(counties_clean, x='Life Expectancy', y='County', orientation='h',
+                      color='highlight',
+                      color_discrete_map={'Hancock County': '#38ef7d', 'Other Ohio Counties': '#1D6B8A'},
+                      labels={'Life Expectancy': 'Life Expectancy (years)', 'County': ''},
+                      template='plotly_dark')
+        fig4.update_traces(hovertemplate='<b>%{y}</b><br>Life Expectancy: %{x:.1f} years<extra></extra>')
+        fig4.update_layout(**LAYOUT_BASE, height=2400,
+                           yaxis=dict(tickfont=dict(size=10)),
+                           xaxis=dict(range=[66, 82]), bargap=0.12)
         if hancock_rank_from_top:
-            st.markdown(
-                f"Hancock County ranks **#{hancock_rank_from_top} out of {total}** Ohio counties "
-                f"for life expectancy at **{life_exp_h} years** — highlighted in green below."
-            )
+            st.markdown(f"Hancock County ranks **#{hancock_rank_from_top} out of {total}** Ohio counties — highlighted in green.")
         st.plotly_chart(fig4, use_container_width=True, config=CHART_CONFIG)
 
 # ---- DOWNLOAD ----
 st.markdown("---")
 export_df = pd.DataFrame({
-    'Indicator': [
-        'Life Expectancy (years)', 'YPLL Rate (per 100k)', 'Injury Death Rate',
-        'Infant Mortality Rate', 'Child Mortality Rate', 'Low Birth Weight %'
-    ],
+    'Indicator': ['Life Expectancy (years)', 'YPLL Rate (per 100k)', 'Injury Death Rate',
+                  'Infant Mortality Rate', 'Child Mortality Rate', 'Low Birth Weight %'],
     'Hancock County': [life_exp_h, ypll_h, injury_h, infant_h, child_mort_h, lbw_h],
     'Ohio': [life_exp_o, ypll_o, injury_o, infant_o, child_mort_o, lbw_o]
 })
 csv = export_df.to_csv(index=False).encode('utf-8')
-st.download_button(
-    label="📥 Download Health Outcomes Data as CSV",
-    data=csv,
-    file_name=f"hancock_health_outcomes_{selected_year}.csv",
-    mime="text/csv"
-)
+st.download_button(label="📥 Download Health Outcomes Data as CSV", data=csv,
+                   file_name=f"hancock_health_outcomes_{selected_year}.csv", mime="text/csv")
 if st.checkbox("Show raw comparison data"):
     st.dataframe(export_df, use_container_width=True)
 
-# ---- DISCLAIMER ----
 render_disclaimer("Health Outcomes & Mortality")
-
-# ---- SIDEBAR CHAT ----
 render_sidebar_chat("Health Outcomes & Mortality")

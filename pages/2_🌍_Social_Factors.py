@@ -5,11 +5,10 @@ import pandas as pd
 from utils.data_loader import (
     load_latest, load_all_years, get_hancock, get_ohio, get_trend, find_column
 )
-from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat
+from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
-st.set_page_config(page_title="?? Social Factors", page_icon="??", layout="wide")
+st.set_page_config(page_title="🌍 Social Factors", page_icon="🌍", layout="wide")
 
-# ---- CSS ----
 st.markdown("""
 <style>
 .kpi-container { display: flex; gap: 20px; margin-bottom: 30px; }
@@ -62,32 +61,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---- CHART CONFIG ----
-CHART_CONFIG = {
-    'displayModeBar': True,
-    'modeBarButtonsToRemove': [
-        'zoom2d', 'pan2d', 'select2d', 'lasso2d',
-        'zoomIn2d', 'zoomOut2d', 'autoScale2d',
-        'hoverClosestCartesian', 'hoverCompareCartesian',
-        'toggleSpikelines'
-    ],
-    'displaylogo': False,
-    'scrollZoom': False,
-}
-
-LAYOUT_BASE = dict(
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0.2)',
-    hovermode='closest',
-    hoverlabel=dict(bgcolor='#1a1a2e', font_size=13),
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-)
-
 # ---- LOAD DATA ----
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR FILTERS — before KPIs ----
+# ---- SIDEBAR ----
 st.sidebar.header("Filters")
 
 show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
@@ -95,21 +73,13 @@ show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
 all_years_list = sorted([
     int(y) for y in all_data['additional']['year'].dropna().unique()
 ])
-if len(all_years_list) >= 2:
-    year_range = st.sidebar.slider(
-        "Year Range",
-        min_value=min(all_years_list),
-        max_value=max(all_years_list),
-        value=(min(all_years_list), max(all_years_list)),
-        step=1
-    )
-else:
-    year_range = (
-        min(all_years_list) if all_years_list else 2020,
-        max(all_years_list) if all_years_list else 2025
-    )
 
-selected_year = year_range[1]
+selected_year = st.sidebar.selectbox(
+    "Select Year",
+    options=sorted(all_years_list, reverse=True),
+    index=0,
+    help="Filters all scorecards and charts to this year"
+)
 
 selected_charts = st.sidebar.multiselect(
     "Charts to Display",
@@ -136,7 +106,7 @@ st.sidebar.markdown("- Housing & food security")
 st.sidebar.markdown("- Education & employment")
 st.sidebar.markdown("- Built environment & access")
 
-# ---- DYNAMIC METRIC HELPER ----
+# ---- METRIC HELPER ----
 def get_metric(col, county='Hancock', sheet='additional'):
     df = all_data[sheet]
     year_df = df[df['year'] == selected_year]
@@ -159,7 +129,7 @@ def diff(h, o):
     if h is None or o is None: return 0
     return round(abs(h - o), 1)
 
-# ---- DYNAMIC METRICS ----
+# ---- METRICS ----
 income_h    = get_metric('Median Household Income')
 income_o    = get_metric('Median Household Income', county='Ohio')
 poverty_h   = get_metric('% Children in Poverty', sheet='select')
@@ -272,10 +242,7 @@ st.markdown("---")
 
 # ---- TREND CHART HELPER ----
 def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
-    df = trend_df[
-        (trend_df['year'] >= year_range[0]) &
-        (trend_df['year'] <= year_range[1])
-    ].copy()
+    df = trend_df[trend_df['year'] <= selected_year].copy()
     if not show_ohio:
         df = df[df['geography'] == 'Hancock County']
     if df.empty:
@@ -302,7 +269,7 @@ def make_trend_chart(trend_df, col, color_map, y_label, value_suffix=""):
 
 # ---- CHART 1: SOCIAL INDICATORS COMPARISON ----
 if "Social Indicators Comparison" in selected_charts:
-    st.markdown('<div class="section-title">Social Indicators — Hancock vs Ohio</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">Social Indicators — Hancock vs Ohio ({selected_year})</div>', unsafe_allow_html=True)
     compare_df = pd.DataFrame({
         'Indicator': ['Food Insecurity %', 'Severe Housing %', 'Unemployment %', 'Children in Poverty %'],
         'Hancock County': [food_h, housing_h, unemploy_h, poverty_h],
@@ -327,7 +294,7 @@ if "Social Indicators Comparison" in selected_charts:
 
 # ---- CHART 2: INCOME TREND ----
 if "Income Trend" in selected_charts:
-    st.markdown('<div class="section-title">Median Household Income — Trend Over Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Median Household Income — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['additional'], ['Median Household Income', 'Median Income'])
     if col:
         fig = make_trend_chart(
@@ -339,13 +306,11 @@ if "Income Trend" in selected_charts:
             fig.update_layout(yaxis=dict(tickprefix='$', tickformat=','))
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No income data in selected year range.")
-    else:
-        st.info("Income column not found in dataset.")
+            st.info("No income data available.")
 
 # ---- CHART 3: CHILDREN IN POVERTY TREND ----
 if "Children in Poverty Trend" in selected_charts:
-    st.markdown('<div class="section-title">Children in Poverty — Trend Over Time</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Children in Poverty — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['select'], ['% Children in Poverty', 'Children in Poverty %'])
     if col:
         fig = make_trend_chart(
@@ -356,13 +321,11 @@ if "Children in Poverty Trend" in selected_charts:
         if fig:
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
-            st.info("No poverty data in selected year range.")
-    else:
-        st.info("Children in poverty column not found.")
+            st.info("No poverty data available.")
 
 # ---- CHART 4: COMMUNITY CONDITIONS RADAR ----
 if "Community Conditions Radar" in selected_charts:
-    st.markdown('<div class="section-title">Community Conditions — Hancock vs Ohio</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title">Community Conditions — Hancock vs Ohio ({selected_year})</div>', unsafe_allow_html=True)
     categories = ['College Education', 'Broadband Access', 'Exercise Access',
                   'Food Security', 'Employment', 'Housing Quality']
     hancock_vals = [
@@ -417,8 +380,5 @@ st.download_button(
 if st.checkbox("Show raw comparison data"):
     st.dataframe(export_df, use_container_width=True)
 
-# ---- DISCLAIMER ----
 render_disclaimer("Social Determinants & Built Environment")
-
-# ---- SIDEBAR CHAT ----
 render_sidebar_chat("Social Determinants & Built Environment")
