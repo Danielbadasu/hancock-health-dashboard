@@ -1,0 +1,23 @@
+[[pages]]
+path = "pages/1_Behavioral_Health.py"
+name = "🧠 Behavioral Health"
+
+[[pages]]
+path = "pages/2_Social_Factors.py"
+name = "🌍 Social Factors"
+
+[[pages]]
+path = "pages/3_Chronic_Disease.py"
+name = "💊 Chronic Disease"
+
+[[pages]]
+path = "pages/4_Health_Outcomes.py"
+name = "📊 Health Outcomes"
+
+[[pages]]
+path = "pages/5_Demographics.py"
+name = "👥 Demographics"
+
+[[pages]]
+path = "pages/6_AI_Assistant.py"
+name = "🤖 AI Assistant"
