@@ -1,66 +1,28 @@
 import streamlit as st
-from groq import Groq
-from chatbot_widget import render_disclaimer, render_sidebar_chat, HANCOCK_CONTEXT
+from chatbot_widget import render_disclaimer, render_sidebar_chat, HANCOCK_CONTEXT, get_groq_client
 
-st.set_page_config(page_title="?? AI Assistant", page_icon="??", layout="wide")
+st.set_page_config(page_title="🤖 AI Assistant", page_icon="🤖", layout="wide")
 
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-# ---- CUSTOM CSS ----
 st.markdown("""
 <style>
-.chat-container {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-bottom: 20px;
-}
-.chat-bubble {
-    padding: 16px 20px;
-    border-radius: 16px;
-    max-width: 80%;
-    line-height: 1.6;
-    font-size: 15px;
-}
+.chat-container { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+.chat-bubble { padding: 16px 20px; border-radius: 16px; max-width: 80%; line-height: 1.6; font-size: 15px; }
 .user-bubble {
     background: linear-gradient(135deg, #0f9b8e, #4ECDC4);
-    color: white;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
+    color: white; margin-left: auto; border-bottom-right-radius: 4px;
 }
 .assistant-bubble {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
     color: rgba(255,255,255,0.9);
-    border: 1px solid rgba(78,205,196,0.2);
-    border-bottom-left-radius: 4px;
+    border: 1px solid rgba(78,205,196,0.2); border-bottom-left-radius: 4px;
 }
 .assistant-name {
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #4ECDC4;
-    margin-bottom: 8px;
-    font-weight: 700;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: #4ECDC4; margin-bottom: 8px; font-weight: 700;
 }
 .user-name {
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 8px;
-    font-weight: 700;
-    text-align: right;
-}
-.suggested-btn {
-    background: rgba(78,205,196,0.1);
-    border: 1px solid rgba(78,205,196,0.3);
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #4ECDC4;
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(255,255,255,0.6); margin-bottom: 8px; font-weight: 700; text-align: right;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -74,13 +36,8 @@ st.markdown("---")
 st.sidebar.header("🎯 Topic Filter")
 selected_topic = st.sidebar.radio(
     "Select Topic",
-    options=[
-        "All Topics",
-        "🧠 Behavioral Health",
-        "🌍 Social Determinants",
-        "💊 Chronic Disease",
-        "📊 Health Outcomes"
-    ],
+    options=["All Topics", "🧠 Behavioral Health", "🌍 Social Determinants",
+             "💊 Chronic Disease", "📊 Health Outcomes"],
     index=0
 )
 st.sidebar.markdown("---")
@@ -128,7 +85,6 @@ st.markdown("---")
 # ---- CHAT STATE ----
 if "ai_page_messages" not in st.session_state:
     st.session_state.ai_page_messages = []
-
 if "suggested" not in st.session_state:
     st.session_state.suggested = None
 
@@ -154,7 +110,6 @@ if st.session_state.ai_page_messages:
 # ---- CHAT INPUT ----
 user_input = st.chat_input("Ask a public health question about Hancock County...")
 
-# Handle suggested question from buttons
 if st.session_state.suggested:
     user_input = st.session_state.suggested
     st.session_state.suggested = None
@@ -162,7 +117,7 @@ if st.session_state.suggested:
 # ---- SEND & RESPOND ----
 if user_input:
     st.session_state.ai_page_messages.append({"role": "user", "content": user_input})
-
+    client = get_groq_client()
     with st.spinner("Thinking..."):
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -182,7 +137,6 @@ if user_input:
                 for m in st.session_state.ai_page_messages
             ]
         )
-
     reply = response.choices[0].message.content
     st.session_state.ai_page_messages.append({"role": "assistant", "content": reply})
     st.rerun()
@@ -195,8 +149,5 @@ if st.session_state.ai_page_messages:
             st.session_state.ai_page_messages = []
             st.rerun()
 
-# ---- DISCLAIMER ----
 render_disclaimer("AI Health Assistant")
-
-# ---- SIDEBAR CHAT ----
 render_sidebar_chat("AI Health Assistant")

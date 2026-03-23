@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from groq import Groq
 
@@ -28,7 +29,6 @@ Be concise, data-driven, and always relate answers back to Hancock County
 and the CHIP priorities where relevant.
 """
 
-# Global chart config — import this in every page
 CHART_CONFIG = {
     'displayModeBar': True,
     'modeBarButtonsToRemove': [
@@ -41,7 +41,6 @@ CHART_CONFIG = {
     'scrollZoom': False,
 }
 
-# Global layout base — import this in every page
 LAYOUT_BASE = dict(
     paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0.2)',
@@ -51,49 +50,40 @@ LAYOUT_BASE = dict(
     dragmode=False,
 )
 
-# Global CSS injected on every page via render_sidebar_chat
 GLOBAL_CSS = """
 <style>
-/* Plotly cursor fix — replace crosshair with pointer */
-.js-plotly-plot .plotly .cursor-crosshair {
-    cursor: pointer !important;
-}
+.js-plotly-plot .plotly .cursor-crosshair { cursor: pointer !important; }
 .js-plotly-plot .plotly .cursor-ew-resize,
 .js-plotly-plot .plotly .cursor-ns-resize,
-.js-plotly-plot .plotly .cursor-move {
-    cursor: pointer !important;
-}
-.js-plotly-plot {
-    cursor: pointer !important;
-}
-
-/* Sidebar textarea */
-div[data-testid="stSidebarContent"] textarea:focus::placeholder {
-    color: transparent !important;
-}
+.js-plotly-plot .plotly .cursor-move { cursor: pointer !important; }
+.js-plotly-plot { cursor: pointer !important; }
+div[data-testid="stSidebarContent"] textarea:focus::placeholder { color: transparent !important; }
 div[data-testid="stSidebarContent"] textarea::placeholder {
-    color: rgba(255,255,255,0.25) !important;
-    font-style: italic;
+    color: rgba(255,255,255,0.25) !important; font-style: italic;
 }
-div[data-testid="stSidebarContent"] textarea {
-    min-height: 80px !important;
-    resize: vertical !important;
-}
+div[data-testid="stSidebarContent"] textarea { min-height: 80px !important; resize: vertical !important; }
 </style>
 """
+
+
+def get_groq_client():
+    api_key = None
+    try:
+        api_key = st.secrets["GROQ_API_KEY"]
+    except Exception:
+        pass
+    if not api_key:
+        api_key = os.environ.get("GROQ_API_KEY", None)
+    return Groq(api_key=api_key)
 
 
 def render_ai_banner(page_context: str):
     st.markdown(f"""
     <style>
     .ai-banner-wrapper {{
-        display: flex;
-        gap: 0px;
-        margin-bottom: 28px;
-        height: 72px;
+        display: flex; gap: 0px; margin-bottom: 28px; height: 72px;
         animation: glowpulse 3s ease-in-out infinite;
-        border-radius: 14px;
-        overflow: hidden;
+        border-radius: 14px; overflow: hidden;
     }}
     @keyframes glowpulse {{
         0%   {{ box-shadow: 0 0 20px rgba(78, 205, 196, 0.15); }}
@@ -104,48 +94,23 @@ def render_ai_banner(page_context: str):
         flex: 1;
         background: linear-gradient(135deg, #1a1a2e, #16213e);
         border: 1px solid rgba(78, 205, 196, 0.4);
-        border-left: 4px solid #4ECDC4;
-        border-right: none;
-        border-radius: 14px 0 0 14px;
-        padding: 0 24px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 4px;
+        border-left: 4px solid #4ECDC4; border-right: none;
+        border-radius: 14px 0 0 14px; padding: 0 24px;
+        display: flex; flex-direction: column; justify-content: center; gap: 4px;
     }}
     .ai-banner-right {{
         flex: 1;
         background: linear-gradient(135deg, #0f3443, #0d4f5c);
-        border: 1px solid rgba(78, 205, 196, 0.4);
-        border-left: none;
+        border: 1px solid rgba(78, 205, 196, 0.4); border-left: none;
         border-radius: 0 14px 14px 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        text-decoration: none !important;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; text-decoration: none !important;
         transition: background 0.2s ease;
     }}
-    .ai-banner-right:hover {{
-        background: linear-gradient(135deg, #1a5276, #1a7a8a);
-    }}
-    .ai-banner-title {{
-        font-size: 14px;
-        font-weight: 700;
-        color: #ffffff;
-        letter-spacing: 0.3px;
-    }}
-    .ai-banner-sub {{
-        font-size: 12px;
-        color: rgba(255,255,255,0.7);
-    }}
-    .ai-banner-cta {{
-        font-size: 14px;
-        font-weight: 700;
-        color: #4ECDC4 !important;
-        letter-spacing: 0.3px;
-        text-decoration: none !important;
-    }}
+    .ai-banner-right:hover {{ background: linear-gradient(135deg, #1a5276, #1a7a8a); }}
+    .ai-banner-title {{ font-size: 14px; font-weight: 700; color: #ffffff; letter-spacing: 0.3px; }}
+    .ai-banner-sub {{ font-size: 12px; color: rgba(255,255,255,0.7); }}
+    .ai-banner-cta {{ font-size: 14px; font-weight: 700; color: #4ECDC4 !important; letter-spacing: 0.3px; text-decoration: none !important; }}
     </style>
     <div class="ai-banner-wrapper">
         <div class="ai-banner-left">
@@ -162,19 +127,11 @@ def render_ai_banner(page_context: str):
 def render_disclaimer(page_context: str = ""):
     st.markdown("---")
     st.markdown("""
-    <div style="
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-left: 4px solid rgba(78, 205, 196, 0.5);
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin-top: 10px;
-    ">
-        <p style="font-size:12px; color:rgba(255,255,255,0.5); margin:0 0 6px 0;
-        font-weight:700; letter-spacing:1px; text-transform:uppercase;">
-            📋 Data Sources & Disclaimer
-        </p>
-        <p style="font-size:12px; color:rgba(255,255,255,0.55); margin:0; line-height:1.7;">
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+    border-left:4px solid rgba(78,205,196,0.5);border-radius:10px;padding:16px 20px;margin-top:10px;">
+        <p style="font-size:12px;color:rgba(255,255,255,0.5);margin:0 0 6px 0;
+        font-weight:700;letter-spacing:1px;text-transform:uppercase;">📋 Data Sources & Disclaimer</p>
+        <p style="font-size:12px;color:rgba(255,255,255,0.55);margin:0;line-height:1.7;">
             Data sourced from the
             <a href="https://www.countyhealthrankings.org/health-data/ohio"
             target="_blank" style="color:#4ECDC4;">County Health Rankings & Roadmaps</a> program,
@@ -182,8 +139,7 @@ def render_disclaimer(page_context: str = ""):
             Wisconsin Population Health Institute · 2025 Annual Data Release.
             Health priorities align with the
             <a href="https://www.hancockph.com/health-assessment-project"
-            target="_blank" style="color:#4ECDC4;">
-            2026–2028 Hancock County Community Health Improvement Plan (CHIP)</a>.
+            target="_blank" style="color:#4ECDC4;">2026–2028 Hancock County Community Health Improvement Plan (CHIP)</a>.
             This dashboard is intended for <strong>informational purposes only</strong>
             and does not constitute medical or public health advice.
             Hancock County, Ohio · Population: 74,704.
@@ -193,9 +149,7 @@ def render_disclaimer(page_context: str = ""):
 
 
 def render_sidebar_chat(page_context: str):
-    # Inject global CSS on every page automatically
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
-
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 💬 Quick AI Chat")
     st.sidebar.markdown(f"*Ask anything about {page_context}*")
@@ -228,15 +182,13 @@ def render_sidebar_chat(page_context: str):
 
     with st.sidebar.form(key=f"chat_form_{page_context}", clear_on_submit=True):
         st.markdown(
-            "<p style='font-size:11px; color:rgba(255,255,255,0.35); margin:0 0 4px 0;'>"
+            "<p style='font-size:11px;color:rgba(255,255,255,0.35);margin:0 0 4px 0;'>"
             "Ctrl+Enter to send</p>",
             unsafe_allow_html=True
         )
         user_input = st.text_area(
-            "message",
-            label_visibility="collapsed",
-            placeholder="Type your question here...",
-            height=100,
+            "message", label_visibility="collapsed",
+            placeholder="Type your question here...", height=100,
         )
         col1, col2 = st.columns([2, 1])
         with col1:
@@ -250,8 +202,7 @@ def render_sidebar_chat(page_context: str):
 
     if send and user_input.strip():
         st.session_state[chat_key].append({"role": "user", "content": user_input})
-
-        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+        client = get_groq_client()
         with st.sidebar:
             with st.spinner("Thinking..."):
                 response = client.chat.completions.create(

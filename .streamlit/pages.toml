@@ -19,5 +19,9 @@ path = "pages/5_Demographics.py"
 name = "👥 Demographics"
 
 [[pages]]
-path = "pages/6_AI_Assistant.py"
+path = "pages/6_Forecast_Analysis.py"
+name = "🔮 Forecast Analysis"
+
+[[pages]]
+path = "pages/7_AI_Assistant.py"
 name = "🤖 AI Assistant"
