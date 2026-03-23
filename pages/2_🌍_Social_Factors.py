@@ -152,28 +152,28 @@ st.markdown(f"""
         <div class="kpi-label">Median Household Income</div>
         <div class="kpi-value">${income_h_int:,}</div>
         <div class="kpi-sub">Ohio: ${income_o_int:,} · {arrow(income_h, income_o, lower_is_better=False)} ${diff(income_h, income_o):,.0f} vs state</div>
-        <div class="kpi-delta">{kpi_delta(income_h_int, income_c_int, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(income_h_int, income_c_int, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">👶</div>
         <div class="kpi-label">Children in Poverty</div>
         <div class="kpi-value">{poverty_h}%</div>
         <div class="kpi-sub">Ohio: {poverty_o}% · {arrow(poverty_h, poverty_o)} {diff(poverty_h, poverty_o)}% better than state</div>
-        <div class="kpi-delta">{kpi_delta(poverty_h, poverty_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(poverty_h, poverty_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card amber">
         <div class="kpi-icon">🍎</div>
         <div class="kpi-label">Food Insecurity</div>
         <div class="kpi-value">{food_h}%</div>
         <div class="kpi-sub">Ohio: {food_o}% · {arrow(food_h, food_o)} {diff(food_h, food_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(food_h, food_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(food_h, food_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card coral">
         <div class="kpi-icon">🏠</div>
         <div class="kpi-label">Severe Housing Problems</div>
         <div class="kpi-value">{housing_h}%</div>
         <div class="kpi-sub">Ohio: {housing_o}% · {arrow(housing_h, housing_o)} {diff(housing_h, housing_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(housing_h, housing_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(housing_h, housing_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -187,28 +187,28 @@ st.markdown(f"""
         <div class="kpi-label">Some College Education</div>
         <div class="kpi-value">{college_h}%</div>
         <div class="kpi-sub">Ohio: {college_o}% · {arrow(college_h, college_o, lower_is_better=False)} {diff(college_h, college_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(college_h, college_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(college_h, college_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card amber">
         <div class="kpi-icon">💼</div>
         <div class="kpi-label">Unemployment Rate</div>
         <div class="kpi-value">{unemploy_h}%</div>
         <div class="kpi-sub">Ohio: {unemploy_o}% · {arrow(unemploy_h, unemploy_o)} {diff(unemploy_h, unemploy_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(unemploy_h, unemploy_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(unemploy_h, unemploy_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card teal">
         <div class="kpi-icon">🌐</div>
         <div class="kpi-label">Broadband Access</div>
         <div class="kpi-value">{broadband_h}%</div>
         <div class="kpi-sub">Ohio: {broadband_o}% · {arrow(broadband_h, broadband_o, lower_is_better=False)} {diff(broadband_h, broadband_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(broadband_h, broadband_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(broadband_h, broadband_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card coral">
         <div class="kpi-icon">🏃</div>
         <div class="kpi-label">Exercise Access</div>
         <div class="kpi-value">{exercise_h}%</div>
         <div class="kpi-sub">Ohio: {exercise_o}% · {arrow(exercise_h, exercise_o, lower_is_better=False)} {diff(exercise_h, exercise_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(exercise_h, exercise_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(exercise_h, exercise_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

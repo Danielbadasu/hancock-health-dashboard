@@ -141,28 +141,28 @@ st.markdown(f"""
         <div class="kpi-label">Life Expectancy</div>
         <div class="kpi-value">{life_exp_h} yrs</div>
         <div class="kpi-sub">Ohio: {life_exp_o} yrs · {arrow(life_exp_h, life_exp_o, lower_is_better=False)} {diff(life_exp_h, life_exp_o)} yrs vs state</div>
-        <div class="kpi-delta">{kpi_delta(life_exp_h, life_exp_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(life_exp_h, life_exp_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">⏱️</div>
         <div class="kpi-label">Years of Potential Life Lost</div>
         <div class="kpi-value">{int(ypll_h):,}</div>
         <div class="kpi-sub">Per 100k · Ohio: {int(ypll_o):,} · {ypll_diff:,} fewer than state</div>
-        <div class="kpi-delta">{kpi_delta(ypll_h, ypll_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(ypll_h, ypll_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card coral">
         <div class="kpi-icon">🚑</div>
         <div class="kpi-label">Injury Death Rate</div>
         <div class="kpi-value">{injury_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {injury_o} · {arrow(injury_h, injury_o)} {diff(injury_h, injury_o)} vs state</div>
-        <div class="kpi-delta">{kpi_delta(injury_h, injury_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(injury_h, injury_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card purple">
         <div class="kpi-icon">👶</div>
         <div class="kpi-label">Infant Mortality Rate</div>
         <div class="kpi-value">{infant_h}</div>
         <div class="kpi-sub">Per 1,000 live births · Ohio: {infant_o} · {arrow(infant_h, infant_o)} {diff(infant_h, infant_o)} vs state</div>
-        <div class="kpi-delta">{kpi_delta(infant_h, infant_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(infant_h, infant_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -176,14 +176,14 @@ st.markdown(f"""
         <div class="kpi-label">Child Mortality Rate</div>
         <div class="kpi-value">{child_mort_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {child_mort_o} · {arrow(child_mort_h, child_mort_o)} {diff(child_mort_h, child_mort_o)} vs state</div>
-        <div class="kpi-delta">{kpi_delta(child_mort_h, child_mort_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(child_mort_h, child_mort_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">⚖️</div>
         <div class="kpi-label">Low Birth Weight</div>
         <div class="kpi-value">{lbw_h}%</div>
         <div class="kpi-sub">Ohio: {lbw_o}% · {arrow(lbw_h, lbw_o)} {diff(lbw_h, lbw_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(lbw_h, lbw_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(lbw_h, lbw_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

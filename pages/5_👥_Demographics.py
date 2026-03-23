@@ -159,14 +159,14 @@ st.markdown(f"""
         <div class="kpi-label">Total Population</div>
         <div class="kpi-value">{int(pop_h):,}</div>
         <div class="kpi-sub">Ohio: {int(pop_o):,} · Hancock is {round(pop_h/pop_o*100, 2)}% of state</div>
-        <div class="kpi-delta">{kpi_delta(pop_h, pop_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(pop_h, pop_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card teal">
         <div class="kpi-icon">🏡</div>
         <div class="kpi-label">Rural Population</div>
         <div class="kpi-value">{safe(pct_rural_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_rural_o, '%')} · {arrow(pct_rural_h, pct_rural_o, lower_is_better=False)} {diff(pct_rural_h, pct_rural_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(pct_rural_h, pct_rural_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(pct_rural_h, pct_rural_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">👩</div>
@@ -179,7 +179,7 @@ st.markdown(f"""
         <div class="kpi-label">Median Household Income</div>
         <div class="kpi-value">${int(income_h):,}</div>
         <div class="kpi-sub">Ohio: ${int(income_o):,} · {arrow(income_h, income_o, lower_is_better=False)} ${diff(income_h, income_o):,.0f} vs state</div>
-        <div class="kpi-delta">{kpi_delta(int(income_h) if income_h else None, income_c_int, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(int(income_h) if income_h else None, income_c_int, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -199,21 +199,21 @@ st.markdown(f"""
         <div class="kpi-label">65 Years and Older</div>
         <div class="kpi-value">{safe(pct_65plus_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_65plus_o, '%')} · {arrow(pct_65plus_h, pct_65plus_o, lower_is_better=False)} {diff(pct_65plus_h, pct_65plus_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(pct_65plus_h, pct_65plus_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(pct_65plus_h, pct_65plus_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">♿</div>
         <div class="kpi-label">Disability Rate</div>
         <div class="kpi-value">{safe(pct_disabled_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_disabled_o, '%')} · {arrow(pct_disabled_h, pct_disabled_o)} {diff(pct_disabled_h, pct_disabled_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(pct_disabled_h, pct_disabled_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(pct_disabled_h, pct_disabled_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card amber">
         <div class="kpi-icon">👨‍👦</div>
         <div class="kpi-label">Single-Parent Households</div>
         <div class="kpi-value">{safe(pct_singlepar_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_singlepar_o, '%')} · {arrow(pct_singlepar_h, pct_singlepar_o)} {diff(pct_singlepar_h, pct_singlepar_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(pct_singlepar_h, pct_singlepar_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(pct_singlepar_h, pct_singlepar_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

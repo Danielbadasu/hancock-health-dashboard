@@ -147,28 +147,28 @@ st.markdown(f"""
         <div class="kpi-label">Adult Obesity</div>
         <div class="kpi-value">{obesity_h}%</div>
         <div class="kpi-sub">Ohio: {obesity_o}% · {arrow(obesity_h, obesity_o)} {diff(obesity_h, obesity_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(obesity_h, obesity_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(obesity_h, obesity_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-icon">🩺</div>
         <div class="kpi-label">Diabetes Prevalence</div>
         <div class="kpi-value">{diabetes_h}%</div>
         <div class="kpi-sub">Ohio: {diabetes_o}% · {arrow(diabetes_h, diabetes_o)} {diff(diabetes_h, diabetes_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(diabetes_h, diabetes_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(diabetes_h, diabetes_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-icon">🚬</div>
         <div class="kpi-label">Adult Smoking</div>
         <div class="kpi-value">{smoking_h}%</div>
         <div class="kpi-sub">Ohio: {smoking_o}% · {arrow(smoking_h, smoking_o)} {diff(smoking_h, smoking_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(smoking_h, smoking_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(smoking_h, smoking_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card orange">
         <div class="kpi-icon">🛋️</div>
         <div class="kpi-label">Physical Inactivity</div>
         <div class="kpi-value">{inactive_h}%</div>
         <div class="kpi-sub">Ohio: {inactive_o}% · {arrow(inactive_h, inactive_o)} {diff(inactive_h, inactive_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(inactive_h, inactive_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(inactive_h, inactive_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -182,28 +182,28 @@ st.markdown(f"""
         <div class="kpi-label">Fair or Poor Health</div>
         <div class="kpi-value">{poor_health_h}%</div>
         <div class="kpi-sub">Ohio: {poor_health_o}% · {arrow(poor_health_h, poor_health_o)} {diff(poor_health_h, poor_health_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(poor_health_h, poor_health_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(poor_health_h, poor_health_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">📅</div>
         <div class="kpi-label">Physically Unhealthy Days</div>
         <div class="kpi-value">{phys_days_h}</div>
         <div class="kpi-sub">Days/month · Ohio: {phys_days_o}</div>
-        <div class="kpi-delta">{kpi_delta(phys_days_h, phys_days_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(phys_days_h, phys_days_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">🏥</div>
         <div class="kpi-label">Primary Care Physicians</div>
         <div class="kpi-value">{pcp_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {pcp_o} · {pcp_o - pcp_h} fewer than state</div>
-        <div class="kpi-delta">{kpi_delta(pcp_h, pcp_c, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(pcp_h, pcp_c, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">💳</div>
         <div class="kpi-label">Uninsured Rate</div>
         <div class="kpi-value">{uninsured_h}%</div>
         <div class="kpi-sub">Ohio: {uninsured_o}% · {arrow(uninsured_h, uninsured_o)} {diff(uninsured_h, uninsured_o)}% vs state</div>
-        <div class="kpi-delta">{kpi_delta(uninsured_h, uninsured_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(uninsured_h, uninsured_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

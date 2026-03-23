@@ -139,28 +139,28 @@ st.markdown(f"""
         <div class="kpi-label">Mentally Unhealthy Days</div>
         <div class="kpi-value">{mh_days_h}</div>
         <div class="kpi-sub">Days/month · Ohio: {mh_days_o} · {arrow(mh_days_h, mh_days_o)} {diff(mh_days_h, mh_days_o)} vs state</div>
-        <div class="kpi-delta">{kpi_delta(mh_days_h, mh_days_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(mh_days_h, mh_days_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-icon">💊</div>
         <div class="kpi-label">Drug Overdose Deaths</div>
         <div class="kpi-value">{overdose_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {overdose_o} · {diff(overdose_h, overdose_o)} better than state</div>
-        <div class="kpi-delta">{kpi_delta(overdose_h, overdose_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(overdose_h, overdose_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">💔</div>
         <div class="kpi-label">Suicide Rate</div>
         <div class="kpi-value">{suicide_h}</div>
         <div class="kpi-sub">Per 100k (age-adj) · Ohio: {suicide_o} · {arrow(suicide_h, suicide_o)} {diff(suicide_h, suicide_o)} vs state</div>
-        <div class="kpi-delta">{kpi_delta(suicide_h, suicide_c, lower_is_better=True)}</div>
+        <div class="kpi-delta">{kpi_delta(suicide_h, suicide_c, compare_year=compare_year, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card teal">
         <div class="kpi-icon">🏥</div>
         <div class="kpi-label">Mental Health Providers</div>
         <div class="kpi-value">{mh_prov_h_int}</div>
         <div class="kpi-sub">Per 100k · Ohio: {mh_prov_o_int} · {mh_prov_o_int - mh_prov_h_int} fewer than state</div>
-        <div class="kpi-delta">{kpi_delta(mh_prov_h_int, mh_prov_c_int, lower_is_better=False)}</div>
+        <div class="kpi-delta">{kpi_delta(mh_prov_h_int, mh_prov_c_int, compare_year=compare_year, lower_is_better=False)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)

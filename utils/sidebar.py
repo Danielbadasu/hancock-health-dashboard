@@ -105,21 +105,40 @@ def fetch_metric(all_data: dict, latest: dict, year: int, col: str, county: str 
     return round(float(val), 1) if pd.notna(val) else None
 
 
-def kpi_delta(current, compare, unit="", lower_is_better=True):
+def kpi_delta(current, compare, compare_year=None, unit="", lower_is_better=True):
     """
-    Returns HTML delta badge showing change vs compare year.
-    Green = improvement, Red = worsening.
+    Returns HTML delta badge — always white text on dark semi-transparent
+    background so it's readable on any card color.
     """
     if compare is None or current is None:
         return ""
     change = round(current - compare, 1)
+    year_label = f"vs {compare_year}" if compare_year else "vs compare year"
     if change == 0:
-        return "<span style='color:rgba(255,255,255,0.4);font-size:10px;'>→ No change vs compare year</span>"
+        return f"""<span style='
+            background: rgba(0,0,0,0.25);
+            color: rgba(255,255,255,0.8);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 4px;
+        '>→ No change {year_label}</span>"""
     direction = "▲" if change > 0 else "▼"
     improved = (change < 0 and lower_is_better) or (change > 0 and not lower_is_better)
-    color = "#38ef7d" if improved else "#ff416c"
-    label = "improved" if improved else "worsened"
-    return f"<span style='color:{color};font-size:10px;font-weight:700;'>{direction} {abs(change)}{unit} vs compare year ({label})</span>"
+    label = "improved ✅" if improved else "worsened ⚠️"
+    return f"""<span style='
+        background: rgba(0,0,0,0.25);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-top: 4px;
+        letter-spacing: 0.2px;
+    '>{direction} {abs(change)}{unit} {year_label} ({label})</span>"""
 
 
 def arrow(h, o, lower_is_better=True):
