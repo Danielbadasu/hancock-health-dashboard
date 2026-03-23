@@ -2,9 +2,8 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from utils.data_loader import (
-    load_latest, load_all_years, get_hancock, get_ohio, get_trend, find_column
-)
+from utils.data_loader import load_latest, load_all_years, get_trend, find_column
+from utils.sidebar import render_sidebar, fetch_metric, kpi_delta, arrow, diff
 from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
 st.set_page_config(page_title="🌍 Social Factors", page_icon="🌍", layout="wide")
@@ -32,6 +31,7 @@ st.markdown("""
     text-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 .kpi-sub { font-size: 12px; color: rgba(255,255,255,0.65); }
+.kpi-delta { font-size: 10px; margin-top: 4px; }
 .kpi-icon { position: absolute; top: 18px; right: 20px; font-size: 42px; opacity: 0.25; }
 .chip-tag {
     display: inline-block; padding: 4px 12px; border-radius: 20px;
@@ -65,31 +65,11 @@ st.markdown("""
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR ----
-st.sidebar.header("Filters")
-
-show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
-
-all_years_list = sorted([
-    int(y) for y in all_data['additional']['year'].dropna().unique()
-])
-
-selected_year = st.sidebar.selectbox(
-    "Select Year",
-    options=sorted(all_years_list, reverse=True),
-    index=0,
-    help="Filters all scorecards and charts to this year"
-)
-
-selected_charts = st.sidebar.multiselect(
-    "Charts to Display",
-    options=[
-        "Social Indicators Comparison",
-        "Income Trend",
-        "Children in Poverty Trend",
-        "Community Conditions Radar",
-    ],
-    default=[
+# ---- CENTRALIZED SIDEBAR ----
+selected_year, compare_year, show_ohio, selected_charts = render_sidebar(
+    page_name="🌍 Social Factors",
+    all_data=all_data,
+    chart_options=[
         "Social Indicators Comparison",
         "Income Trend",
         "Children in Poverty Trend",
@@ -97,58 +77,46 @@ selected_charts = st.sidebar.multiselect(
     ]
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📋 CHIP Priority 2")
-st.sidebar.markdown("Social Determinants & Built Environment")
-st.sidebar.markdown("**Focus areas:**")
-st.sidebar.markdown("- Income & poverty")
-st.sidebar.markdown("- Housing & food security")
-st.sidebar.markdown("- Education & employment")
-st.sidebar.markdown("- Built environment & access")
+# ---- METRIC HELPERS ----
+def gm(col, county='Hancock', sheet='additional'):
+    return fetch_metric(all_data, latest, selected_year, col, county, sheet)
 
-# ---- METRIC HELPER ----
-def get_metric(col, county='Hancock', sheet='additional'):
-    df = all_data[sheet]
-    year_df = df[df['year'] == selected_year]
-    if county == 'Hancock':
-        row = year_df[year_df['County'] == 'Hancock']
-    else:
-        row = year_df[(year_df['County'].isna()) & (year_df['State'] == 'Ohio')]
-    if row.empty or col not in row.columns:
-        fallback = get_hancock(latest[sheet]) if county == 'Hancock' else get_ohio(latest[sheet])
-        val = fallback[col] if col in fallback.index else None
-        return round(float(val), 1) if val is not None and pd.notna(val) else None
-    val = row.iloc[0][col]
-    return round(float(val), 1) if pd.notna(val) else None
-
-def arrow(h, o, lower_is_better=True):
-    if h is None or o is None: return '–'
-    return '▼' if (h < o) else '▲'
-
-def diff(h, o):
-    if h is None or o is None: return 0
-    return round(abs(h - o), 1)
+def gmc(col, county='Hancock', sheet='additional'):
+    if compare_year is None: return None
+    return fetch_metric(all_data, latest, compare_year, col, county, sheet)
 
 # ---- METRICS ----
-income_h    = get_metric('Median Household Income')
-income_o    = get_metric('Median Household Income', county='Ohio')
-poverty_h   = get_metric('% Children in Poverty', sheet='select')
-poverty_o   = get_metric('% Children in Poverty', county='Ohio', sheet='select')
-food_h      = get_metric('% Food Insecure')
-food_o      = get_metric('% Food Insecure', county='Ohio')
-housing_h   = get_metric('% Severe Housing Problems', sheet='select')
-housing_o   = get_metric('% Severe Housing Problems', county='Ohio', sheet='select')
-college_h   = get_metric('% Some College', sheet='select')
-college_o   = get_metric('% Some College', county='Ohio', sheet='select')
-unemploy_h  = get_metric('% Unemployed', sheet='select')
-unemploy_o  = get_metric('% Unemployed', county='Ohio', sheet='select')
-broadband_h = get_metric('% Households with Broadband Access', sheet='select')
-broadband_o = get_metric('% Households with Broadband Access', county='Ohio', sheet='select')
-exercise_h  = get_metric('% With Access to Exercise Opportunities', sheet='select')
-exercise_o  = get_metric('% With Access to Exercise Opportunities', county='Ohio', sheet='select')
+income_h    = gm('Median Household Income')
+income_o    = gm('Median Household Income', county='Ohio')
+poverty_h   = gm('% Children in Poverty', sheet='select')
+poverty_o   = gm('% Children in Poverty', county='Ohio', sheet='select')
+food_h      = gm('% Food Insecure')
+food_o      = gm('% Food Insecure', county='Ohio')
+housing_h   = gm('% Severe Housing Problems', sheet='select')
+housing_o   = gm('% Severe Housing Problems', county='Ohio', sheet='select')
+college_h   = gm('% Some College', sheet='select')
+college_o   = gm('% Some College', county='Ohio', sheet='select')
+unemploy_h  = gm('% Unemployed', sheet='select')
+unemploy_o  = gm('% Unemployed', county='Ohio', sheet='select')
+broadband_h = gm('% Households with Broadband Access', sheet='select')
+broadband_o = gm('% Households with Broadband Access', county='Ohio', sheet='select')
+exercise_h  = gm('% With Access to Exercise Opportunities', sheet='select')
+exercise_o  = gm('% With Access to Exercise Opportunities', county='Ohio', sheet='select')
 
 income_h_int = int(income_h) if income_h else 0
 income_o_int = int(income_o) if income_o else 0
+
+# ---- COMPARE METRICS ----
+income_c    = gmc('Median Household Income')
+poverty_c   = gmc('% Children in Poverty', sheet='select')
+food_c      = gmc('% Food Insecure')
+housing_c   = gmc('% Severe Housing Problems', sheet='select')
+college_c   = gmc('% Some College', sheet='select')
+unemploy_c  = gmc('% Unemployed', sheet='select')
+broadband_c = gmc('% Households with Broadband Access', sheet='select')
+exercise_c  = gmc('% With Access to Exercise Opportunities', sheet='select')
+
+income_c_int = int(income_c) if income_c else None
 
 # ---- HEADER ----
 st.markdown(
@@ -173,7 +141,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---- AI BANNER ----
 render_ai_banner("Social Determinants & Built Environment")
 
 # ---- KPI ROW 1 ----
@@ -185,24 +152,28 @@ st.markdown(f"""
         <div class="kpi-label">Median Household Income</div>
         <div class="kpi-value">${income_h_int:,}</div>
         <div class="kpi-sub">Ohio: ${income_o_int:,} · {arrow(income_h, income_o, lower_is_better=False)} ${diff(income_h, income_o):,.0f} vs state</div>
+        <div class="kpi-delta">{kpi_delta(income_h_int, income_c_int, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">👶</div>
         <div class="kpi-label">Children in Poverty</div>
         <div class="kpi-value">{poverty_h}%</div>
         <div class="kpi-sub">Ohio: {poverty_o}% · {arrow(poverty_h, poverty_o)} {diff(poverty_h, poverty_o)}% better than state</div>
+        <div class="kpi-delta">{kpi_delta(poverty_h, poverty_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card amber">
         <div class="kpi-icon">🍎</div>
         <div class="kpi-label">Food Insecurity</div>
         <div class="kpi-value">{food_h}%</div>
         <div class="kpi-sub">Ohio: {food_o}% · {arrow(food_h, food_o)} {diff(food_h, food_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(food_h, food_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card coral">
         <div class="kpi-icon">🏠</div>
         <div class="kpi-label">Severe Housing Problems</div>
         <div class="kpi-value">{housing_h}%</div>
         <div class="kpi-sub">Ohio: {housing_o}% · {arrow(housing_h, housing_o)} {diff(housing_h, housing_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(housing_h, housing_c, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -216,24 +187,28 @@ st.markdown(f"""
         <div class="kpi-label">Some College Education</div>
         <div class="kpi-value">{college_h}%</div>
         <div class="kpi-sub">Ohio: {college_o}% · {arrow(college_h, college_o, lower_is_better=False)} {diff(college_h, college_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(college_h, college_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card amber">
         <div class="kpi-icon">💼</div>
         <div class="kpi-label">Unemployment Rate</div>
         <div class="kpi-value">{unemploy_h}%</div>
         <div class="kpi-sub">Ohio: {unemploy_o}% · {arrow(unemploy_h, unemploy_o)} {diff(unemploy_h, unemploy_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(unemploy_h, unemploy_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card teal">
         <div class="kpi-icon">🌐</div>
         <div class="kpi-label">Broadband Access</div>
         <div class="kpi-value">{broadband_h}%</div>
         <div class="kpi-sub">Ohio: {broadband_o}% · {arrow(broadband_h, broadband_o, lower_is_better=False)} {diff(broadband_h, broadband_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(broadband_h, broadband_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card coral">
         <div class="kpi-icon">🏃</div>
         <div class="kpi-label">Exercise Access</div>
         <div class="kpi-value">{exercise_h}%</div>
         <div class="kpi-sub">Ohio: {exercise_o}% · {arrow(exercise_h, exercise_o, lower_is_better=False)} {diff(exercise_h, exercise_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(exercise_h, exercise_c, lower_is_better=False)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -276,19 +251,11 @@ if "Social Indicators Comparison" in selected_charts:
         'Ohio': [food_o, housing_o, unemploy_o, poverty_o]
     })
     cols_to_show = ['Hancock County', 'Ohio'] if show_ohio else ['Hancock County']
-    compare_melted = compare_df[['Indicator'] + cols_to_show].melt(
-        id_vars='Indicator', var_name='Geography', value_name='Value'
-    )
-    fig1 = px.bar(
-        compare_melted, x='Indicator', y='Value',
-        color='Geography', barmode='group',
-        color_discrete_map={'Hancock County': '#4ECDC4', 'Ohio': '#ffd200'},
-        labels={'Value': 'Percentage (%)', 'Indicator': ''},
-        template='plotly_dark'
-    )
-    fig1.update_traces(
-        hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y:.1f}%<extra></extra>'
-    )
+    compare_melted = compare_df[['Indicator'] + cols_to_show].melt(id_vars='Indicator', var_name='Geography', value_name='Value')
+    fig1 = px.bar(compare_melted, x='Indicator', y='Value', color='Geography', barmode='group',
+                  color_discrete_map={'Hancock County': '#4ECDC4', 'Ohio': '#ffd200'},
+                  labels={'Value': 'Percentage (%)', 'Indicator': ''}, template='plotly_dark')
+    fig1.update_traces(hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y:.1f}%<extra></extra>')
     fig1.update_layout(**LAYOUT_BASE)
     st.plotly_chart(fig1, use_container_width=True, config=CHART_CONFIG)
 
@@ -297,11 +264,8 @@ if "Income Trend" in selected_charts:
     st.markdown('<div class="section-title">Median Household Income — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['additional'], ['Median Household Income', 'Median Income'])
     if col:
-        fig = make_trend_chart(
-            get_trend(all_data['additional'], col), col,
-            {'Hancock County': '#4ECDC4', 'Ohio': '#ffd200'},
-            'Median Income ($)', ''
-        )
+        fig = make_trend_chart(get_trend(all_data['additional'], col), col,
+                               {'Hancock County': '#4ECDC4', 'Ohio': '#ffd200'}, 'Median Income ($)', '')
         if fig:
             fig.update_layout(yaxis=dict(tickprefix='$', tickformat=','))
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
@@ -313,11 +277,8 @@ if "Children in Poverty Trend" in selected_charts:
     st.markdown('<div class="section-title">Children in Poverty — Trend Up To Selected Year</div>', unsafe_allow_html=True)
     col = find_column(all_data['select'], ['% Children in Poverty', 'Children in Poverty %'])
     if col:
-        fig = make_trend_chart(
-            get_trend(all_data['select'], col), col,
-            {'Hancock County': '#4ECDC4', 'Ohio': '#ffd200'},
-            'Children in Poverty', '%'
-        )
+        fig = make_trend_chart(get_trend(all_data['select'], col), col,
+                               {'Hancock County': '#4ECDC4', 'Ohio': '#ffd200'}, 'Children in Poverty', '%')
         if fig:
             st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
         else:
@@ -328,14 +289,10 @@ if "Community Conditions Radar" in selected_charts:
     st.markdown(f'<div class="section-title">Community Conditions — Hancock vs Ohio ({selected_year})</div>', unsafe_allow_html=True)
     categories = ['College Education', 'Broadband Access', 'Exercise Access',
                   'Food Security', 'Employment', 'Housing Quality']
-    hancock_vals = [
-        college_h or 0, broadband_h or 0, exercise_h or 0,
-        100 - (food_h or 0), 100 - (unemploy_h or 0), 100 - (housing_h or 0)
-    ]
-    ohio_vals = [
-        college_o or 0, broadband_o or 0, exercise_o or 0,
-        100 - (food_o or 0), 100 - (unemploy_o or 0), 100 - (housing_o or 0)
-    ]
+    hancock_vals = [college_h or 0, broadband_h or 0, exercise_h or 0,
+                    100 - (food_h or 0), 100 - (unemploy_h or 0), 100 - (housing_h or 0)]
+    ohio_vals    = [college_o or 0, broadband_o or 0, exercise_o or 0,
+                    100 - (food_o or 0), 100 - (unemploy_o or 0), 100 - (housing_o or 0)]
     fig4 = go.Figure()
     fig4.add_trace(go.Scatterpolar(
         r=hancock_vals, theta=categories, fill='toself',
@@ -352,8 +309,7 @@ if "Community Conditions Radar" in selected_charts:
         ))
     fig4.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-        template='plotly_dark',
-        paper_bgcolor='rgba(0,0,0,0)',
+        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
         legend=dict(orientation='h', yanchor='bottom', y=-0.2, xanchor='center', x=0.5),
         hoverlabel=dict(bgcolor='#1a1a2e', font_size=13)
     )
@@ -362,21 +318,15 @@ if "Community Conditions Radar" in selected_charts:
 # ---- DOWNLOAD ----
 st.markdown("---")
 export_df = pd.DataFrame({
-    'Indicator': [
-        'Median Household Income', 'Children in Poverty %', 'Food Insecurity %',
-        'Severe Housing Problems %', 'Some College %', 'Unemployment %',
-        'Broadband Access %', 'Exercise Access %'
-    ],
+    'Indicator': ['Median Household Income', 'Children in Poverty %', 'Food Insecurity %',
+                  'Severe Housing Problems %', 'Some College %', 'Unemployment %',
+                  'Broadband Access %', 'Exercise Access %'],
     'Hancock County': [income_h_int, poverty_h, food_h, housing_h, college_h, unemploy_h, broadband_h, exercise_h],
     'Ohio': [income_o_int, poverty_o, food_o, housing_o, college_o, unemploy_o, broadband_o, exercise_o]
 })
 csv = export_df.to_csv(index=False).encode('utf-8')
-st.download_button(
-    label="📥 Download Social Factors Data as CSV",
-    data=csv,
-    file_name=f"hancock_social_factors_{selected_year}.csv",
-    mime="text/csv"
-)
+st.download_button(label="📥 Download Social Factors Data as CSV", data=csv,
+                   file_name=f"hancock_social_factors_{selected_year}.csv", mime="text/csv")
 if st.checkbox("Show raw comparison data"):
     st.dataframe(export_df, use_container_width=True)
 

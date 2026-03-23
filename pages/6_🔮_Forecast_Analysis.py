@@ -1,8 +1,6 @@
 import streamlit as st
-import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
 from utils.data_loader import load_latest, load_all_years, get_hancock, get_ohio
 from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
@@ -66,7 +64,7 @@ ohio_a    = get_ohio(latest['additional'])
 hancock_s = get_hancock(latest['select'])
 ohio_s    = get_ohio(latest['select'])
 
-# ---- SIDEBAR ----
+# ---- SIDEBAR — Forecast has its own unique sidebar ----
 st.sidebar.header("Simulation Settings")
 
 scenario = st.sidebar.radio(
@@ -118,7 +116,7 @@ scenarios = {
     }
 }
 
-config     = scenarios[scenario]
+config      = scenarios[scenario]
 years_ahead = target_year - 2025
 
 # ---- BASE VALUES (2025) ----
@@ -140,12 +138,18 @@ ohio_values = {
     "Physical Inactivity":     round(ohio_a['% Physically Inactive'], 1),
 }
 
-units           = {"Drug Overdose Rate": "per 100k", "Life Expectancy": "years", "Adult Obesity": "%",
-                   "Mental Health Providers": "per 100k", "Children in Poverty": "%", "Physical Inactivity": "%"}
-lower_is_better = {"Drug Overdose Rate": True, "Life Expectancy": False, "Adult Obesity": True,
-                   "Mental Health Providers": False, "Children in Poverty": True, "Physical Inactivity": True}
-card_colors     = {"Drug Overdose Rate": "red", "Life Expectancy": "teal", "Adult Obesity": "amber",
-                   "Mental Health Providers": "purple", "Children in Poverty": "green", "Physical Inactivity": "amber"}
+units = {
+    "Drug Overdose Rate": "per 100k", "Life Expectancy": "years", "Adult Obesity": "%",
+    "Mental Health Providers": "per 100k", "Children in Poverty": "%", "Physical Inactivity": "%"
+}
+lower_is_better = {
+    "Drug Overdose Rate": True, "Life Expectancy": False, "Adult Obesity": True,
+    "Mental Health Providers": False, "Children in Poverty": True, "Physical Inactivity": True
+}
+card_colors = {
+    "Drug Overdose Rate": "red", "Life Expectancy": "teal", "Adult Obesity": "amber",
+    "Mental Health Providers": "purple", "Children in Poverty": "green", "Physical Inactivity": "amber"
+}
 
 def project(base, rate, years):
     return round(base * ((1 + rate) ** years), 1)
@@ -168,7 +172,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---- AI BANNER ----
 render_ai_banner("Health Forecast & Scenario Analysis")
 
 # ---- SCENARIO BOXES ----
@@ -188,14 +191,14 @@ rows = [metric_list[i:i+4] for i in range(0, len(metric_list), 4)]
 for row in rows:
     card_html = '<div class="kpi-container">'
     for m in row:
-        base   = base_values[m]
-        proj   = projected[m]
-        unit   = units[m]
-        color  = card_colors[m]
-        lib    = lower_is_better[m]
-        change = round(proj - base, 1)
+        base      = base_values[m]
+        proj      = projected[m]
+        unit      = units[m]
+        color     = card_colors[m]
+        lib       = lower_is_better[m]
+        change    = round(proj - base, 1)
         direction = '▼' if change < 0 else '▲'
-        good   = (change < 0 and lib) or (change > 0 and not lib)
+        good      = (change < 0 and lib) or (change > 0 and not lib)
         sentiment = '✅' if good else '⚠️'
         card_html += f"""<div class="kpi-card {color}">
             <div class="kpi-icon">{sentiment}</div>
@@ -214,9 +217,9 @@ for metric in selected_metrics:
     if metric not in base_values:
         continue
     st.markdown(f'<div class="section-title">{metric} — Projection to {target_year}</div>', unsafe_allow_html=True)
-    base  = base_values[metric]
-    unit  = units[metric]
-    color = config['color']
+    base     = base_values[metric]
+    unit     = units[metric]
+    color    = config['color']
     opt_vals = [project(base, scenarios["🟢 Optimistic"]['rates'][metric], i) for i in range(len(projection_years))]
     mod_vals = [project(base, scenarios["🟡 Moderate"]['rates'][metric], i) for i in range(len(projection_years))]
     pes_vals = [project(base, scenarios["🔴 Pessimistic"]['rates'][metric], i) for i in range(len(projection_years))]
@@ -227,24 +230,37 @@ for metric in selected_metrics:
         fill='toself', fillcolor='rgba(168,85,247,0.08)', line=dict(color='rgba(0,0,0,0)'),
         name='Scenario Range', hoverinfo='skip', showlegend=True
     ))
-    fig.add_trace(go.Scatter(x=projection_years, y=opt_vals, mode='lines', name='Optimistic',
-                             line=dict(color='#38ef7d', width=2, dash='dash'),
-                             hovertemplate=f'<b>Optimistic</b><br>Year: %{{x}}<br>{metric}: %{{y:.1f}} {unit}<extra></extra>'))
-    fig.add_trace(go.Scatter(x=projection_years, y=pes_vals, mode='lines', name='Pessimistic',
-                             line=dict(color='#ff416c', width=2, dash='dash'),
-                             hovertemplate=f'<b>Pessimistic</b><br>Year: %{{x}}<br>{metric}: %{{y:.1f}} {unit}<extra></extra>'))
-    fig.add_trace(go.Scatter(x=projection_years, y=mod_vals, mode='lines+markers',
-                             name=f'{scenario} (Selected)', line=dict(color=color, width=4), marker=dict(size=7),
-                             hovertemplate=f'<b>{scenario}</b><br>Year: %{{x}}<br>{metric}: %{{y:.1f}} {unit}<extra></extra>'))
+    fig.add_trace(go.Scatter(
+        x=projection_years, y=opt_vals, mode='lines', name='Optimistic',
+        line=dict(color='#38ef7d', width=2, dash='dash'),
+        hovertemplate=f'<b>Optimistic</b><br>Year: %{{x}}<br>{metric}: %{{y:.1f}} {unit}<extra></extra>'
+    ))
+    fig.add_trace(go.Scatter(
+        x=projection_years, y=pes_vals, mode='lines', name='Pessimistic',
+        line=dict(color='#ff416c', width=2, dash='dash'),
+        hovertemplate=f'<b>Pessimistic</b><br>Year: %{{x}}<br>{metric}: %{{y:.1f}} {unit}<extra></extra>'
+    ))
+    fig.add_trace(go.Scatter(
+        x=projection_years, y=mod_vals, mode='lines+markers',
+        name=f'{scenario} (Selected)', line=dict(color=color, width=4), marker=dict(size=7),
+        hovertemplate=f'<b>{scenario}</b><br>Year: %{{x}}<br>{metric}: %{{y:.1f}} {unit}<extra></extra>'
+    ))
     if show_ohio and metric in ohio_values:
-        fig.add_hline(y=ohio_values[metric], line_dash='dot', line_color='#4ECDC4', opacity=0.7,
-                      annotation_text=f'Ohio 2025: {ohio_values[metric]} {unit}',
-                      annotation_position='top left', annotation_font_color='#4ECDC4')
-    fig.add_vline(x=2025, line_dash='dot', line_color='rgba(255,255,255,0.3)',
-                  annotation_text='2025 Baseline', annotation_position='top right',
-                  annotation_font_color='rgba(255,255,255,0.5)')
-    fig.update_layout(**LAYOUT_BASE, xaxis=dict(tickformat='d', dtick=1, title='Year'),
-                      yaxis=dict(title=f'{metric} ({unit})'))
+        fig.add_hline(
+            y=ohio_values[metric], line_dash='dot', line_color='#4ECDC4', opacity=0.7,
+            annotation_text=f'Ohio 2025: {ohio_values[metric]} {unit}',
+            annotation_position='top left', annotation_font_color='#4ECDC4'
+        )
+    fig.add_vline(
+        x=2025, line_dash='dot', line_color='rgba(255,255,255,0.3)',
+        annotation_text='2025 Baseline', annotation_position='top right',
+        annotation_font_color='rgba(255,255,255,0.5)'
+    )
+    fig.update_layout(
+        **LAYOUT_BASE,
+        xaxis=dict(tickformat='d', dtick=1, title='Year'),
+        yaxis=dict(title=f'{metric} ({unit})')
+    )
     st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
 
 # ---- SUMMARY TABLE ----
@@ -256,7 +272,7 @@ for m in base_values:
         'Metric': m, 'Unit': units[m],
         '2025 Baseline': base_values[m],
         f'Optimistic ({target_year})': project(base_values[m], scenarios["🟢 Optimistic"]['rates'][m], years_ahead),
-        f'Moderate ({target_year})': project(base_values[m], scenarios["🟡 Moderate"]['rates'][m], years_ahead),
+        f'Moderate ({target_year})':   project(base_values[m], scenarios["🟡 Moderate"]['rates'][m], years_ahead),
         f'Pessimistic ({target_year})': project(base_values[m], scenarios["🔴 Pessimistic"]['rates'][m], years_ahead),
         'Ohio 2025': ohio_values.get(m, 'N/A')
     })
@@ -264,9 +280,11 @@ summary_df = pd.DataFrame(summary_rows)
 st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
 csv = summary_df.to_csv(index=False).encode('utf-8')
-st.download_button(label="📥 Download Forecast Data as CSV", data=csv,
-                   file_name=f"hancock_forecast_{scenario.replace(' ', '_')}_{target_year}.csv",
-                   mime="text/csv")
+st.download_button(
+    label="📥 Download Forecast Data as CSV", data=csv,
+    file_name=f"hancock_forecast_{scenario.replace(' ', '_')}_{target_year}.csv",
+    mime="text/csv"
+)
 
 # ---- DISCLAIMER ----
 st.markdown("---")

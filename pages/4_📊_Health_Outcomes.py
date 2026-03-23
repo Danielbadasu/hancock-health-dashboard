@@ -2,10 +2,8 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from utils.data_loader import (
-    load_latest, load_all_years, get_hancock, get_ohio,
-    get_trend, get_all_counties, find_column
-)
+from utils.data_loader import load_latest, load_all_years, get_trend, get_all_counties, find_column
+from utils.sidebar import render_sidebar, fetch_metric, kpi_delta, arrow, diff
 from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
 st.set_page_config(page_title="📊 Health Outcomes", page_icon="📊", layout="wide")
@@ -33,6 +31,7 @@ st.markdown("""
     text-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 .kpi-sub { font-size: 12px; color: rgba(255,255,255,0.65); }
+.kpi-delta { font-size: 10px; margin-top: 4px; }
 .kpi-icon { position: absolute; top: 18px; right: 20px; font-size: 42px; opacity: 0.25; }
 .chip-tag {
     display: inline-block; padding: 4px 12px; border-radius: 20px;
@@ -66,30 +65,11 @@ st.markdown("""
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR ----
-st.sidebar.header("Filters")
-show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
-
-all_years_list = sorted([
-    int(y) for y in all_data['additional']['year'].dropna().unique()
-])
-
-selected_year = st.sidebar.selectbox(
-    "Select Year",
-    options=sorted(all_years_list, reverse=True),
-    index=0,
-    help="Filters all scorecards and charts to this year"
-)
-
-selected_charts = st.sidebar.multiselect(
-    "Charts to Display",
-    options=[
-        "Life Expectancy Trend",
-        "YPLL Trend",
-        "Health Outcomes Comparison",
-        "County Ranking",
-    ],
-    default=[
+# ---- CENTRALIZED SIDEBAR ----
+selected_year, compare_year, show_ohio, selected_charts = render_sidebar(
+    page_name="📊 Health Outcomes",
+    all_data=all_data,
+    chart_options=[
         "Life Expectancy Trend",
         "YPLL Trend",
         "Health Outcomes Comparison",
@@ -97,54 +77,38 @@ selected_charts = st.sidebar.multiselect(
     ]
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📊 Health Outcomes")
-st.sidebar.markdown("Cross-cutting across all CHIP priorities")
-st.sidebar.markdown("**Indicators:**")
-st.sidebar.markdown("- Life expectancy")
-st.sidebar.markdown("- Premature mortality")
-st.sidebar.markdown("- Birth outcomes")
-st.sidebar.markdown("- Injury deaths")
+# ---- METRIC HELPERS ----
+def gm(col, county='Hancock', sheet='additional'):
+    return fetch_metric(all_data, latest, selected_year, col, county, sheet)
 
-# ---- METRIC HELPER ----
-def get_metric(col, county='Hancock', sheet='additional'):
-    df = all_data[sheet]
-    year_df = df[df['year'] == selected_year]
-    if county == 'Hancock':
-        row = year_df[year_df['County'] == 'Hancock']
-    else:
-        row = year_df[(year_df['County'].isna()) & (year_df['State'] == 'Ohio')]
-    if row.empty or col not in row.columns:
-        fallback = get_hancock(latest[sheet]) if county == 'Hancock' else get_ohio(latest[sheet])
-        val = fallback[col] if col in fallback.index else None
-        return round(float(val), 1) if val is not None and pd.notna(val) else None
-    val = row.iloc[0][col]
-    return round(float(val), 1) if pd.notna(val) else None
-
-def arrow(h, o, lower_is_better=True):
-    if h is None or o is None: return '–'
-    return '▼' if (h < o) else '▲'
-
-def diff(h, o):
-    if h is None or o is None: return 0
-    return round(abs(h - o), 1)
+def gmc(col, county='Hancock', sheet='additional'):
+    if compare_year is None: return None
+    return fetch_metric(all_data, latest, compare_year, col, county, sheet)
 
 # ---- METRICS ----
-life_exp_h   = get_metric('Life Expectancy')
-life_exp_o   = get_metric('Life Expectancy', county='Ohio')
-ypll_h       = get_metric('Years of Potential Life Lost Rate', sheet='select')
-ypll_o       = get_metric('Years of Potential Life Lost Rate', county='Ohio', sheet='select')
-injury_h     = get_metric('Injury Death Rate', sheet='select')
-injury_o     = get_metric('Injury Death Rate', county='Ohio', sheet='select')
-infant_h     = get_metric('Infant Mortality Rate')
-infant_o     = get_metric('Infant Mortality Rate', county='Ohio')
-child_mort_h = get_metric('Child Mortality Rate')
-child_mort_o = get_metric('Child Mortality Rate', county='Ohio')
-lbw_h        = get_metric('% Low Birth Weight', sheet='select')
-lbw_o        = get_metric('% Low Birth Weight', county='Ohio', sheet='select')
+life_exp_h   = gm('Life Expectancy')
+life_exp_o   = gm('Life Expectancy', county='Ohio')
+ypll_h       = gm('Years of Potential Life Lost Rate', sheet='select')
+ypll_o       = gm('Years of Potential Life Lost Rate', county='Ohio', sheet='select')
+injury_h     = gm('Injury Death Rate', sheet='select')
+injury_o     = gm('Injury Death Rate', county='Ohio', sheet='select')
+infant_h     = gm('Infant Mortality Rate')
+infant_o     = gm('Infant Mortality Rate', county='Ohio')
+child_mort_h = gm('Child Mortality Rate')
+child_mort_o = gm('Child Mortality Rate', county='Ohio')
+lbw_h        = gm('% Low Birth Weight', sheet='select')
+lbw_o        = gm('% Low Birth Weight', county='Ohio', sheet='select')
 
 life_diff = round((life_exp_h or 0) - (life_exp_o or 0), 1)
 ypll_diff = round((ypll_o or 0) - (ypll_h or 0))
+
+# ---- COMPARE METRICS ----
+life_exp_c   = gmc('Life Expectancy')
+ypll_c       = gmc('Years of Potential Life Lost Rate', sheet='select')
+injury_c     = gmc('Injury Death Rate', sheet='select')
+infant_c     = gmc('Infant Mortality Rate')
+child_mort_c = gmc('Child Mortality Rate')
+lbw_c        = gmc('% Low Birth Weight', sheet='select')
 
 # ---- HEADER ----
 st.markdown(
@@ -166,7 +130,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---- AI BANNER ----
 render_ai_banner("Health Outcomes & Mortality")
 
 # ---- KPI ROW 1 ----
@@ -178,24 +141,28 @@ st.markdown(f"""
         <div class="kpi-label">Life Expectancy</div>
         <div class="kpi-value">{life_exp_h} yrs</div>
         <div class="kpi-sub">Ohio: {life_exp_o} yrs · {arrow(life_exp_h, life_exp_o, lower_is_better=False)} {diff(life_exp_h, life_exp_o)} yrs vs state</div>
+        <div class="kpi-delta">{kpi_delta(life_exp_h, life_exp_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">⏱️</div>
         <div class="kpi-label">Years of Potential Life Lost</div>
         <div class="kpi-value">{int(ypll_h):,}</div>
         <div class="kpi-sub">Per 100k · Ohio: {int(ypll_o):,} · {ypll_diff:,} fewer than state</div>
+        <div class="kpi-delta">{kpi_delta(ypll_h, ypll_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card coral">
         <div class="kpi-icon">🚑</div>
         <div class="kpi-label">Injury Death Rate</div>
         <div class="kpi-value">{injury_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {injury_o} · {arrow(injury_h, injury_o)} {diff(injury_h, injury_o)} vs state</div>
+        <div class="kpi-delta">{kpi_delta(injury_h, injury_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card purple">
         <div class="kpi-icon">👶</div>
         <div class="kpi-label">Infant Mortality Rate</div>
         <div class="kpi-value">{infant_h}</div>
         <div class="kpi-sub">Per 1,000 live births · Ohio: {infant_o} · {arrow(infant_h, infant_o)} {diff(infant_h, infant_o)} vs state</div>
+        <div class="kpi-delta">{kpi_delta(infant_h, infant_c, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -209,12 +176,14 @@ st.markdown(f"""
         <div class="kpi-label">Child Mortality Rate</div>
         <div class="kpi-value">{child_mort_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {child_mort_o} · {arrow(child_mort_h, child_mort_o)} {diff(child_mort_h, child_mort_o)} vs state</div>
+        <div class="kpi-delta">{kpi_delta(child_mort_h, child_mort_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">⚖️</div>
         <div class="kpi-label">Low Birth Weight</div>
         <div class="kpi-value">{lbw_h}%</div>
         <div class="kpi-sub">Ohio: {lbw_o}% · {arrow(lbw_h, lbw_o)} {diff(lbw_h, lbw_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(lbw_h, lbw_c, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -291,9 +260,7 @@ if "Health Outcomes Comparison" in selected_charts:
         'Ohio': [injury_o, infant_o, child_mort_o, lbw_o]
     })
     cols_to_show = ['Hancock County', 'Ohio'] if show_ohio else ['Hancock County']
-    compare_melted = compare_df[['Indicator'] + cols_to_show].melt(
-        id_vars='Indicator', var_name='Geography', value_name='Value'
-    )
+    compare_melted = compare_df[['Indicator'] + cols_to_show].melt(id_vars='Indicator', var_name='Geography', value_name='Value')
     fig3 = px.bar(compare_melted, x='Indicator', y='Value', color='Geography', barmode='group',
                   color_discrete_map={'Hancock County': '#38ef7d', 'Ohio': '#4ECDC4'},
                   labels={'Value': 'Rate / %', 'Indicator': ''}, template='plotly_dark')

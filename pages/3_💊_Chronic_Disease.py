@@ -1,9 +1,8 @@
 import streamlit as st
 import plotly.express as px
 import pandas as pd
-from utils.data_loader import (
-    load_latest, load_all_years, get_hancock, get_ohio, get_trend, find_column
-)
+from utils.data_loader import load_latest, load_all_years, get_trend, find_column
+from utils.sidebar import render_sidebar, fetch_metric, kpi_delta, arrow, diff
 from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
 st.set_page_config(page_title="💊 Chronic Disease", page_icon="💊", layout="wide")
@@ -30,6 +29,7 @@ st.markdown("""
     text-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 .kpi-sub { font-size: 12px; color: rgba(255,255,255,0.65); }
+.kpi-delta { font-size: 10px; margin-top: 4px; }
 .kpi-icon { position: absolute; top: 18px; right: 20px; font-size: 42px; opacity: 0.25; }
 .chip-tag {
     display: inline-block; padding: 4px 12px; border-radius: 20px;
@@ -63,31 +63,11 @@ st.markdown("""
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR ----
-st.sidebar.header("Filters")
-show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
-
-all_years_list = sorted([
-    int(y) for y in all_data['additional']['year'].dropna().unique()
-])
-
-selected_year = st.sidebar.selectbox(
-    "Select Year",
-    options=sorted(all_years_list, reverse=True),
-    index=0,
-    help="Filters all scorecards and charts to this year"
-)
-
-selected_charts = st.sidebar.multiselect(
-    "Charts to Display",
-    options=[
-        "Chronic Disease Comparison",
-        "Obesity Trend",
-        "Diabetes Trend",
-        "Smoking Trend",
-        "PCP Access Trend",
-    ],
-    default=[
+# ---- CENTRALIZED SIDEBAR ----
+selected_year, compare_year, show_ohio, selected_charts = render_sidebar(
+    page_name="💊 Chronic Disease",
+    all_data=all_data,
+    chart_options=[
         "Chronic Disease Comparison",
         "Obesity Trend",
         "Diabetes Trend",
@@ -96,56 +76,44 @@ selected_charts = st.sidebar.multiselect(
     ]
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📋 CHIP Priority 3")
-st.sidebar.markdown("Chronic Disease & Healthy Lifestyle")
-st.sidebar.markdown("**Focus areas:**")
-st.sidebar.markdown("- Obesity & diabetes")
-st.sidebar.markdown("- Smoking & inactivity")
-st.sidebar.markdown("- Preventive care access")
+# ---- METRIC HELPERS ----
+def gm(col, county='Hancock', sheet='additional'):
+    return fetch_metric(all_data, latest, selected_year, col, county, sheet)
 
-# ---- METRIC HELPER ----
-def get_metric(col, county='Hancock', sheet='additional'):
-    df = all_data[sheet]
-    year_df = df[df['year'] == selected_year]
-    if county == 'Hancock':
-        row = year_df[year_df['County'] == 'Hancock']
-    else:
-        row = year_df[(year_df['County'].isna()) & (year_df['State'] == 'Ohio')]
-    if row.empty or col not in row.columns:
-        fallback = get_hancock(latest[sheet]) if county == 'Hancock' else get_ohio(latest[sheet])
-        val = fallback[col] if col in fallback.index else None
-        return round(float(val), 1) if val is not None and pd.notna(val) else None
-    val = row.iloc[0][col]
-    return round(float(val), 1) if pd.notna(val) else None
-
-def arrow(h, o, lower_is_better=True):
-    if h is None or o is None: return '–'
-    return '▼' if (h < o) else '▲'
-
-def diff(h, o):
-    if h is None or o is None: return 0
-    return round(abs(h - o), 1)
+def gmc(col, county='Hancock', sheet='additional'):
+    if compare_year is None: return None
+    return fetch_metric(all_data, latest, compare_year, col, county, sheet)
 
 # ---- METRICS ----
-obesity_h     = get_metric('% Adults with Obesity')
-obesity_o     = get_metric('% Adults with Obesity', county='Ohio')
-diabetes_h    = get_metric('% Adults with Diabetes')
-diabetes_o    = get_metric('% Adults with Diabetes', county='Ohio')
-smoking_h     = get_metric('% Adults Reporting Currently Smoking')
-smoking_o     = get_metric('% Adults Reporting Currently Smoking', county='Ohio')
-inactive_h    = get_metric('% Physically Inactive')
-inactive_o    = get_metric('% Physically Inactive', county='Ohio')
-poor_health_h = get_metric('% Fair or Poor Health', sheet='select')
-poor_health_o = get_metric('% Fair or Poor Health', county='Ohio', sheet='select')
-phys_days_h   = get_metric('Average Number of Physically Unhealthy Days', sheet='select')
-phys_days_o   = get_metric('Average Number of Physically Unhealthy Days', county='Ohio', sheet='select')
-uninsured_h   = get_metric('% Uninsured', sheet='select')
-uninsured_o   = get_metric('% Uninsured', county='Ohio', sheet='select')
-pcp_h_raw     = get_metric('Primary Care Physicians Rate', sheet='select')
-pcp_o_raw     = get_metric('Primary Care Physicians Rate', county='Ohio', sheet='select')
+obesity_h     = gm('% Adults with Obesity')
+obesity_o     = gm('% Adults with Obesity', county='Ohio')
+diabetes_h    = gm('% Adults with Diabetes')
+diabetes_o    = gm('% Adults with Diabetes', county='Ohio')
+smoking_h     = gm('% Adults Reporting Currently Smoking')
+smoking_o     = gm('% Adults Reporting Currently Smoking', county='Ohio')
+inactive_h    = gm('% Physically Inactive')
+inactive_o    = gm('% Physically Inactive', county='Ohio')
+poor_health_h = gm('% Fair or Poor Health', sheet='select')
+poor_health_o = gm('% Fair or Poor Health', county='Ohio', sheet='select')
+phys_days_h   = gm('Average Number of Physically Unhealthy Days', sheet='select')
+phys_days_o   = gm('Average Number of Physically Unhealthy Days', county='Ohio', sheet='select')
+uninsured_h   = gm('% Uninsured', sheet='select')
+uninsured_o   = gm('% Uninsured', county='Ohio', sheet='select')
+pcp_h_raw     = gm('Primary Care Physicians Rate', sheet='select')
+pcp_o_raw     = gm('Primary Care Physicians Rate', county='Ohio', sheet='select')
 pcp_h         = round(pcp_h_raw) if pcp_h_raw else 0
 pcp_o         = round(pcp_o_raw) if pcp_o_raw else 0
+
+# ---- COMPARE METRICS ----
+obesity_c     = gmc('% Adults with Obesity')
+diabetes_c    = gmc('% Adults with Diabetes')
+smoking_c     = gmc('% Adults Reporting Currently Smoking')
+inactive_c    = gmc('% Physically Inactive')
+poor_health_c = gmc('% Fair or Poor Health', sheet='select')
+phys_days_c   = gmc('Average Number of Physically Unhealthy Days', sheet='select')
+uninsured_c   = gmc('% Uninsured', sheet='select')
+pcp_c_raw     = gmc('Primary Care Physicians Rate', sheet='select')
+pcp_c         = round(pcp_c_raw) if pcp_c_raw else None
 
 # ---- HEADER ----
 st.markdown(
@@ -168,7 +136,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---- AI BANNER ----
 render_ai_banner("Chronic Disease & Healthy Lifestyle")
 
 # ---- KPI ROW 1 ----
@@ -180,24 +147,28 @@ st.markdown(f"""
         <div class="kpi-label">Adult Obesity</div>
         <div class="kpi-value">{obesity_h}%</div>
         <div class="kpi-sub">Ohio: {obesity_o}% · {arrow(obesity_h, obesity_o)} {diff(obesity_h, obesity_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(obesity_h, obesity_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-icon">🩺</div>
         <div class="kpi-label">Diabetes Prevalence</div>
         <div class="kpi-value">{diabetes_h}%</div>
         <div class="kpi-sub">Ohio: {diabetes_o}% · {arrow(diabetes_h, diabetes_o)} {diff(diabetes_h, diabetes_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(diabetes_h, diabetes_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-icon">🚬</div>
         <div class="kpi-label">Adult Smoking</div>
         <div class="kpi-value">{smoking_h}%</div>
         <div class="kpi-sub">Ohio: {smoking_o}% · {arrow(smoking_h, smoking_o)} {diff(smoking_h, smoking_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(smoking_h, smoking_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card orange">
         <div class="kpi-icon">🛋️</div>
         <div class="kpi-label">Physical Inactivity</div>
         <div class="kpi-value">{inactive_h}%</div>
         <div class="kpi-sub">Ohio: {inactive_o}% · {arrow(inactive_h, inactive_o)} {diff(inactive_h, inactive_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(inactive_h, inactive_c, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -211,24 +182,28 @@ st.markdown(f"""
         <div class="kpi-label">Fair or Poor Health</div>
         <div class="kpi-value">{poor_health_h}%</div>
         <div class="kpi-sub">Ohio: {poor_health_o}% · {arrow(poor_health_h, poor_health_o)} {diff(poor_health_h, poor_health_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(poor_health_h, poor_health_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">📅</div>
         <div class="kpi-label">Physically Unhealthy Days</div>
         <div class="kpi-value">{phys_days_h}</div>
         <div class="kpi-sub">Days/month · Ohio: {phys_days_o}</div>
+        <div class="kpi-delta">{kpi_delta(phys_days_h, phys_days_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">🏥</div>
         <div class="kpi-label">Primary Care Physicians</div>
         <div class="kpi-value">{pcp_h}</div>
         <div class="kpi-sub">Per 100k · Ohio: {pcp_o} · {pcp_o - pcp_h} fewer than state</div>
+        <div class="kpi-delta">{kpi_delta(pcp_h, pcp_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">💳</div>
         <div class="kpi-label">Uninsured Rate</div>
         <div class="kpi-value">{uninsured_h}%</div>
         <div class="kpi-sub">Ohio: {uninsured_o}% · {arrow(uninsured_h, uninsured_o)} {diff(uninsured_h, uninsured_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(uninsured_h, uninsured_c, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -272,16 +247,10 @@ if "Chronic Disease Comparison" in selected_charts:
         'Ohio': [obesity_o, diabetes_o, smoking_o, inactive_o, poor_health_o]
     })
     cols_to_melt = ['Hancock County', 'Ohio'] if show_ohio else ['Hancock County']
-    bar_melted = bar_data[['Indicator'] + cols_to_melt].melt(
-        id_vars='Indicator', var_name='Geography', value_name='Value'
-    )
-    fig1 = px.bar(
-        bar_melted, x='Indicator', y='Value',
-        color='Geography', barmode='group',
-        color_discrete_map={'Hancock County': '#ffd200', 'Ohio': '#4ECDC4'},
-        labels={'Value': 'Percentage (%)', 'Indicator': ''},
-        template='plotly_dark'
-    )
+    bar_melted = bar_data[['Indicator'] + cols_to_melt].melt(id_vars='Indicator', var_name='Geography', value_name='Value')
+    fig1 = px.bar(bar_melted, x='Indicator', y='Value', color='Geography', barmode='group',
+                  color_discrete_map={'Hancock County': '#ffd200', 'Ohio': '#4ECDC4'},
+                  labels={'Value': 'Percentage (%)', 'Indicator': ''}, template='plotly_dark')
     fig1.update_traces(hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y:.1f}%<extra></extra>')
     fig1.update_layout(**LAYOUT_BASE)
     st.plotly_chart(fig1, use_container_width=True, config=CHART_CONFIG)
@@ -315,9 +284,7 @@ if "Diabetes Trend" in selected_charts:
 # ---- CHART 4: SMOKING TREND ----
 if "Smoking Trend" in selected_charts:
     st.markdown('<div class="section-title">Adult Smoking — Trend Up To Selected Year</div>', unsafe_allow_html=True)
-    col = find_column(all_data['additional'], [
-        '% Adults Reporting Currently Smoking', '% Smokers', 'Adult Smoking Rate'
-    ])
+    col = find_column(all_data['additional'], ['% Adults Reporting Currently Smoking', '% Smokers', 'Adult Smoking Rate'])
     if col:
         result = make_trend_chart(get_trend(all_data['additional'], col), col,
                                   {'Hancock County': '#ffd200', 'Ohio': '#4ECDC4'}, 'Adults Smoking', '%')

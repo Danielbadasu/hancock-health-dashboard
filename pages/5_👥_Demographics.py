@@ -2,10 +2,8 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from utils.data_loader import (
-    load_latest, load_all_years, get_hancock, get_ohio,
-    get_trend, get_all_counties, find_column
-)
+from utils.data_loader import load_latest, load_all_years, get_ohio, get_trend, find_column
+from utils.sidebar import render_sidebar, fetch_metric, kpi_delta, arrow, diff
 from chatbot_widget import render_ai_banner, render_disclaimer, render_sidebar_chat, CHART_CONFIG, LAYOUT_BASE
 
 st.set_page_config(page_title="👥 Demographics", page_icon="👥", layout="wide")
@@ -34,6 +32,7 @@ st.markdown("""
     text-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 .kpi-sub { font-size: 12px; color: rgba(255,255,255,0.65); }
+.kpi-delta { font-size: 10px; margin-top: 4px; }
 .kpi-icon { position: absolute; top: 18px; right: 20px; font-size: 42px; opacity: 0.25; }
 .chip-tag {
     display: inline-block; padding: 4px 12px; border-radius: 20px;
@@ -67,32 +66,11 @@ st.markdown("""
 latest   = load_latest()
 all_data = load_all_years()
 
-# ---- SIDEBAR ----
-st.sidebar.header("Filters")
-show_ohio = st.sidebar.toggle("Show Ohio Benchmark", value=True)
-
-all_years_list = sorted([
-    int(y) for y in all_data['additional']['year'].dropna().unique()
-])
-
-selected_year = st.sidebar.selectbox(
-    "Select Year",
-    options=sorted(all_years_list, reverse=True),
-    index=0,
-    help="Filters all scorecards and charts to this year"
-)
-
-selected_charts = st.sidebar.multiselect(
-    "Charts to Display",
-    options=[
-        "Population Composition",
-        "Age Distribution",
-        "Race & Ethnicity",
-        "Income by Race",
-        "Single-Parent Households Trend",
-        "Disability & Language",
-    ],
-    default=[
+# ---- CENTRALIZED SIDEBAR ----
+selected_year, compare_year, show_ohio, selected_charts = render_sidebar(
+    page_name="👥 Demographics",
+    all_data=all_data,
+    chart_options=[
         "Population Composition",
         "Age Distribution",
         "Race & Ethnicity",
@@ -102,68 +80,52 @@ selected_charts = st.sidebar.multiselect(
     ]
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 👥 Demographics")
-st.sidebar.markdown("Population context for all CHIP priorities")
-st.sidebar.markdown("**Indicators:**")
-st.sidebar.markdown("- Age & gender distribution")
-st.sidebar.markdown("- Race & ethnicity")
-st.sidebar.markdown("- Income by demographic")
-st.sidebar.markdown("- Disability & language access")
-st.sidebar.markdown("- Single-parent households")
+# ---- METRIC HELPERS ----
+def gm(col, county='Hancock', sheet='additional'):
+    return fetch_metric(all_data, latest, selected_year, col, county, sheet)
 
-# ---- METRIC HELPER ----
-def get_metric(col, county='Hancock', sheet='additional'):
-    df = all_data[sheet]
-    year_df = df[df['year'] == selected_year]
-    if county == 'Hancock':
-        row = year_df[year_df['County'] == 'Hancock']
-    else:
-        row = year_df[(year_df['County'].isna()) & (year_df['State'] == 'Ohio')]
-    if row.empty or col not in row.columns:
-        fallback = get_hancock(latest[sheet]) if county == 'Hancock' else get_ohio(latest[sheet])
-        val = fallback[col] if col in fallback.index else None
-        return round(float(val), 1) if val is not None and pd.notna(val) else None
-    val = row.iloc[0][col]
-    return round(float(val), 1) if pd.notna(val) else None
+def gmc(col, county='Hancock', sheet='additional'):
+    if compare_year is None: return None
+    return fetch_metric(all_data, latest, compare_year, col, county, sheet)
 
 def safe(val, suffix='', prefix='', fallback='N/A'):
     if val is None: return fallback
     return f"{prefix}{val}{suffix}"
 
-def arrow(h, o, lower_is_better=True):
-    if h is None or o is None: return '–'
-    return '▼' if (h < o) else '▲'
-
-def diff(h, o):
-    if h is None or o is None: return 0
-    return round(abs(h - o), 1)
-
 # ---- METRICS ----
-pop_h           = get_metric('Population')
-pop_o           = get_metric('Population', county='Ohio')
-pct_under18_h   = get_metric('% Below 18 Years of Age')
-pct_under18_o   = get_metric('% Below 18 Years of Age', county='Ohio')
-pct_65plus_h    = get_metric('% 65 and Over')
-pct_65plus_o    = get_metric('% 65 and Over', county='Ohio')
-pct_female_h    = get_metric('% Female')
-pct_female_o    = get_metric('% Female', county='Ohio')
-pct_rural_h     = get_metric('% Rural')
-pct_rural_o     = get_metric('% Rural', county='Ohio')
-pct_white_h     = get_metric('% Non-Hispanic White')
-pct_white_o     = get_metric('% Non-Hispanic White', county='Ohio')
-pct_black_h     = get_metric('% Non-Hispanic Black')
-pct_black_o     = get_metric('% Non-Hispanic Black', county='Ohio')
-pct_hispanic_h  = get_metric('% Hispanic')
-pct_hispanic_o  = get_metric('% Hispanic', county='Ohio')
-pct_disabled_h  = get_metric('% with disability')
-pct_disabled_o  = get_metric('% with disability', county='Ohio')
-pct_noenglish_h = get_metric('% Not Proficient in English')
-pct_noenglish_o = get_metric('% Not Proficient in English', county='Ohio')
-pct_singlepar_h = get_metric('% Children in Single-Parent Households')
-pct_singlepar_o = get_metric('% Children in Single-Parent Households', county='Ohio')
-income_h        = get_metric('Median Household Income')
-income_o        = get_metric('Median Household Income', county='Ohio')
+pop_h           = gm('Population')
+pop_o           = gm('Population', county='Ohio')
+pct_under18_h   = gm('% Below 18 Years of Age')
+pct_under18_o   = gm('% Below 18 Years of Age', county='Ohio')
+pct_65plus_h    = gm('% 65 and Over')
+pct_65plus_o    = gm('% 65 and Over', county='Ohio')
+pct_female_h    = gm('% Female')
+pct_female_o    = gm('% Female', county='Ohio')
+pct_rural_h     = gm('% Rural')
+pct_rural_o     = gm('% Rural', county='Ohio')
+pct_white_h     = gm('% Non-Hispanic White')
+pct_white_o     = gm('% Non-Hispanic White', county='Ohio')
+pct_black_h     = gm('% Non-Hispanic Black')
+pct_black_o     = gm('% Non-Hispanic Black', county='Ohio')
+pct_hispanic_h  = gm('% Hispanic')
+pct_hispanic_o  = gm('% Hispanic', county='Ohio')
+pct_disabled_h  = gm('% with disability')
+pct_disabled_o  = gm('% with disability', county='Ohio')
+pct_noenglish_h = gm('% Not Proficient in English')
+pct_noenglish_o = gm('% Not Proficient in English', county='Ohio')
+pct_singlepar_h = gm('% Children in Single-Parent Households')
+pct_singlepar_o = gm('% Children in Single-Parent Households', county='Ohio')
+income_h        = gm('Median Household Income')
+income_o        = gm('Median Household Income', county='Ohio')
+
+# ---- COMPARE METRICS ----
+pop_c          = gmc('Population')
+pct_rural_c    = gmc('% Rural')
+pct_65plus_c   = gmc('% 65 and Over')
+pct_disabled_c = gmc('% with disability')
+pct_singlepar_c = gmc('% Children in Single-Parent Households')
+income_c       = gmc('Median Household Income')
+income_c_int   = int(income_c) if income_c else None
 
 # ---- HEADER ----
 st.markdown(
@@ -186,7 +148,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---- AI BANNER ----
 render_ai_banner("Demographics & Population Profile")
 
 # ---- KPI ROW 1 ----
@@ -198,12 +159,14 @@ st.markdown(f"""
         <div class="kpi-label">Total Population</div>
         <div class="kpi-value">{int(pop_h):,}</div>
         <div class="kpi-sub">Ohio: {int(pop_o):,} · Hancock is {round(pop_h/pop_o*100, 2)}% of state</div>
+        <div class="kpi-delta">{kpi_delta(pop_h, pop_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card teal">
         <div class="kpi-icon">🏡</div>
         <div class="kpi-label">Rural Population</div>
         <div class="kpi-value">{safe(pct_rural_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_rural_o, '%')} · {arrow(pct_rural_h, pct_rural_o, lower_is_better=False)} {diff(pct_rural_h, pct_rural_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(pct_rural_h, pct_rural_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card blue">
         <div class="kpi-icon">👩</div>
@@ -216,6 +179,7 @@ st.markdown(f"""
         <div class="kpi-label">Median Household Income</div>
         <div class="kpi-value">${int(income_h):,}</div>
         <div class="kpi-sub">Ohio: ${int(income_o):,} · {arrow(income_h, income_o, lower_is_better=False)} ${diff(income_h, income_o):,.0f} vs state</div>
+        <div class="kpi-delta">{kpi_delta(int(income_h) if income_h else None, income_c_int, lower_is_better=False)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -235,18 +199,21 @@ st.markdown(f"""
         <div class="kpi-label">65 Years and Older</div>
         <div class="kpi-value">{safe(pct_65plus_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_65plus_o, '%')} · {arrow(pct_65plus_h, pct_65plus_o, lower_is_better=False)} {diff(pct_65plus_h, pct_65plus_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(pct_65plus_h, pct_65plus_c, lower_is_better=False)}</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-icon">♿</div>
         <div class="kpi-label">Disability Rate</div>
         <div class="kpi-value">{safe(pct_disabled_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_disabled_o, '%')} · {arrow(pct_disabled_h, pct_disabled_o)} {diff(pct_disabled_h, pct_disabled_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(pct_disabled_h, pct_disabled_c, lower_is_better=True)}</div>
     </div>
     <div class="kpi-card amber">
         <div class="kpi-icon">👨‍👦</div>
         <div class="kpi-label">Single-Parent Households</div>
         <div class="kpi-value">{safe(pct_singlepar_h, '%')}</div>
         <div class="kpi-sub">Ohio: {safe(pct_singlepar_o, '%')} · {arrow(pct_singlepar_h, pct_singlepar_o)} {diff(pct_singlepar_h, pct_singlepar_o)}% vs state</div>
+        <div class="kpi-delta">{kpi_delta(pct_singlepar_h, pct_singlepar_c, lower_is_better=True)}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
