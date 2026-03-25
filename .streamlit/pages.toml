@@ -1,4 +1,8 @@
 [[pages]]
+path = "Home.py"
+name = "🏠 Home"
+
+[[pages]]
 path = "pages/1_Behavioral_Health.py"
 name = "🧠 Behavioral Health"
 
